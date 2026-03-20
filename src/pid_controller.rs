@@ -1,6 +1,3 @@
-#![allow(unused)]
-use assert_float_eq::assert_f32_near;
-
 use core::ops::{Add, Mul, Neg, Sub};
 use num_traits::{Signed, Zero};
 
@@ -28,7 +25,7 @@ pub struct PidError<T> {
     pub k: T,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PidController<T> {
     pid: PidConstants<T>,
     /// saved value of pid.ki, so integration can be switched on and off
@@ -448,7 +445,7 @@ where
     }
 
     /// reset all, for test code
-    fn reset_all(&mut self) {
+    pub fn reset_all(&mut self) {
         self.measurement_previous = T::zero();
         self.setpoint = T::zero();
         self.setpoint_previous = T::zero();
@@ -488,9 +485,19 @@ where
     }
 }
 
+impl<T> Default for PidController<T>
+where
+    T: Copy + Zero + Neg + PartialOrd + PartialEq + Signed + Add<Output = T> + Sub<Output = T> + Mul<Output = T>,
+{
+    fn default() -> Self {
+        Self::new(T::one(), T::zero(), T::zero())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_float_eq::assert_f32_near;
 
     fn is_normal<T: Sized + Send + Sync + Unpin>() {}
 
@@ -502,6 +509,12 @@ mod tests {
     #[test]
     fn default() {
         let pid: PidController<f32> = PidController::default();
+        assert_eq!(1.0, pid.kp());
+        assert_eq!(0.0, pid.ki());
+        assert_eq!(0.0, pid.kd());
+        assert_eq!(0.0, pid.ks());
+        assert_eq!(0.0, pid.kk());
+        assert_eq!(0.0, pid.setpoint());
     }
 
     #[test]

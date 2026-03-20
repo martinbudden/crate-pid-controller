@@ -4,6 +4,6 @@
 #![deny(clippy::panic)]
 #![deny(unused_must_use)]
 
-mod pid_controller;
+pub mod pid_controller;
 
 pub use pid_controller::{PidConstants, PidController, PidError};

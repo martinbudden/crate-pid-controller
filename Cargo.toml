@@ -6,6 +6,8 @@ authors = ["Martin Budden"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-assert_float_eq = "1.2.0" # used for PidController
-filters = { git = "https://github.com/martinbudden/Crate-filters" } # used for test
 num-traits = "0.2.19"
+
+[dev-dependencies]
+assert_float_eq = "1.2.0" # used for test
+filters = { git = "https://github.com/martinbudden/Crate-filters" } # used for test
