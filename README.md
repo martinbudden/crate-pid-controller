@@ -38,14 +38,14 @@ The PID controller deliberately does not implement these features:
 
 ## Original implementation
 
-This crate was originally implemented as a c++ library. The 
+This crate was originally implemented as a c++ library. The
 [original implementation can be found here](https://github.com/martinbudden/Library-PID).
 
 ## License
 
 Licensed under either of
 
-* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+* MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
 
 at your option.

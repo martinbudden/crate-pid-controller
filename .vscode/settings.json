@@ -6,7 +6,9 @@
         "feedforward",
         "Filterf",
         "iterm",
+        "katex",
         "openloop",
+        "rustdoc",
         "skpd",
         "skpi"
     ]

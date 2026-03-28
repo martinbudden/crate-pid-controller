@@ -37,7 +37,7 @@ dependencies = [
 [[package]]
 name = "filters"
 version = "0.1.0"
-source = "git+https://github.com/martinbudden/Crate-filters#bc62817eba57285bcd4569e3e12f1a047d62122f"
+source = "git+https://github.com/martinbudden/Crate-filters#a45879a1300b955d20503081454bfc7acb6d11d7"
 dependencies = [
  "num-traits",
  "vector-quaternion-matrix",
@@ -105,7 +105,7 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 [[package]]
 name = "vector-quaternion-matrix"
 version = "0.1.0"
-source = "git+https://github.com/martinbudden/Crate-vector_quaternion_matrix#4afcee20f7a56973ab31afe20c6f2bf243cb1b4d"
+source = "git+https://github.com/martinbudden/Crate-vector_quaternion_matrix#65d719c507e4b2037c045d143d58907122d1ce80"
 dependencies = [
  "bytemuck",
  "libm",
