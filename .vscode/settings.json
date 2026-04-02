@@ -1,15 +1,20 @@
 {
     "cSpell.words": [
+        "autocfg",
         "Budden",
+        "bytemuck",
         "codegen",
         "debuginfo",
+        "eabihf",
         "feedforward",
         "Filterf",
         "iterm",
         "katex",
+        "libm",
         "openloop",
         "rustdoc",
         "skpd",
-        "skpi"
+        "skpi",
+        "thumbv"
     ]
 }
