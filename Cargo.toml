@@ -6,11 +6,18 @@ authors = ["Martin Budden"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 
+[features]
+default = ["libm"]
+libm = ["num-traits/libm"]
+
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
+[build-dependencies]
+rustc_version = "0.4"
+
 [dependencies]
-num-traits = { version = "0.2.19", default-features = false, features = ["libm"] }
+num-traits = { version = "0.2.19", default-features = false }
 
 [dev-dependencies]
 assert_float_eq = "1.2.0" # used for test
