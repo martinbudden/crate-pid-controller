@@ -1,12 +1,22 @@
-use core::ops::{Add, Mul, Neg, Sub};
-use num_traits::{Signed, Zero};
+use core::ops::{Add, Div, Mul, Neg, Sub};
+use num_traits::{One, Signed, Zero};
 
-/// PID controller with feed forward (open loop) control.
-/// This includes setpoint gain (classical feed forward) and setpoint derivative gain (kick).
+use crate::pid::Pid;
+
+pub type PidControllerf32 = PidController<f32>;
+pub type PidConstantsf32 = PidConstants<f32>;
+pub type PidErrorf32 = PidError<f32>;
+
+pub type PidControllerf64 = PidController<f64>;
+pub type PidConstantsf64 = PidConstants<f64>;
+pub type PidErrorf64 = PidError<f64>;
+
+/// PID controller with open loop control.
+/// This includes setpoint gain (classical feed forward) and setpoint derivative gain (kick - called feedforward by Betaflight).
 ///
 /// Uses "independent PID" notation, where the gains are denoted as kp, ki, kd etc.
 ///
-/// (In the "dependent PID" notation Kc, tauI, and tauD parameters are used, where kp = Kc, ki = Kc/tauI, kd = Kc*tauD).
+/// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
 ///
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PidConstants<T> {
@@ -46,15 +56,34 @@ pub struct PidController<T> {
     integral_max: T,
     /// Integral windup limit for negative integral.
     integral_min: T,
-    /// Threshold for PID integration. Can be set to afn integral wind-up due to movement in motor's backlash zone.
+    /// Threshold for PID integration. Can be set to avoid integral wind-up due to movement in motor's backlash zone.
     integral_threshold: T,
     /// For integral windup control.
     output_saturation_value: T,
 }
 
+/// Default `PidController`.
+/// ```
+/// # use pidsk_controller::PidControllerf32;
+/// # use num_traits::Zero;
+///
+/// let pid = PidControllerf32::default();
+///
+/// assert_eq!(1.0, pid.kp());
+/// ```
+impl<T> Default for PidController<T>
+where
+    T: Copy + Default + Zero + One,
+{
+    #[inline(always)]
+    fn default() -> Self {
+        Self::new(T::one(), T::zero(), T::zero())
+    }
+}
+
 impl<T> PidController<T>
 where
-    T: Copy + Zero + Neg + PartialOrd + PartialEq + Signed + Add<Output = T> + Sub<Output = T> + Mul<Output = T>,
+    T: Copy + Default,
 {
     pub fn new(kp: T, ki: T, kd: T) -> Self {
         Self {
@@ -62,24 +91,196 @@ where
                 kp,
                 ki,
                 kd,
-                ks: T::zero(),
-                kk: T::zero(),
+                ks: T::default(),
+                kk: T::default(),
             },
             ki_saved: ki,
-            measurement_previous: T::zero(),
-            setpoint: T::zero(),
-            setpoint_previous: T::zero(),
-            setpoint_derivative: T::zero(),
-            error_derivative: T::zero(),
-            error_integral: T::zero(),
-            error_previous: T::zero(),
-            integral_max: T::zero(),
-            integral_min: T::zero(),
-            integral_threshold: T::zero(),
-            output_saturation_value: T::zero(),
+            measurement_previous: T::default(),
+            setpoint: T::default(),
+            setpoint_previous: T::default(),
+            setpoint_derivative: T::default(),
+            error_derivative: T::default(),
+            error_integral: T::default(),
+            error_previous: T::default(),
+            integral_max: T::default(),
+            integral_min: T::default(),
+            integral_threshold: T::default(),
+            output_saturation_value: T::default(),
         }
     }
+}
 
+impl<T>Pid<T> for  PidController<T>
+where
+    T: Copy + Zero + Signed + PartialOrd + Add<Output = T>  + Mul<Output = T>,
+{
+    /// PID update.
+    /// ```
+    /// # use pidsk_controller::{PidControllerf32,Pid};
+    /// let delta_t: f32 = 0.01;
+    /// let mut pid = PidControllerf32::new(0.1, 0.0, 0.0);
+    ///
+    /// pid.set_setpoint(8.7);
+    ///
+    /// let measurement:f32 = 9.2;
+    /// let output = pid.update(measurement, delta_t);
+    ///
+    /// assert_eq!(-0.05, output);
+    /// ```
+    fn update(&mut self, measurement: T, delta_t: T) -> T {
+        self.update_delta(measurement, measurement - self.measurement_previous, delta_t)
+    }
+
+    /// PID update with `measurement_delta` specified.
+    /// This allows the user to filter `measurement_delta` with a filter of their choice.
+    ///
+    /// ```
+    /// # use pidsk_controller::{PidControllerf32,Pid};
+    /// # use signal_filters::{Pt1Filterf32,SignalFilter};
+    /// let delta_t: f32 = 0.01;
+    /// let mut pid = PidControllerf32::new(0.1, 0.0, 0.01);
+    /// let mut filter = Pt1Filterf32::new(1.0);
+    ///
+    /// pid.set_setpoint(2.1);
+    ///
+    /// let measurement:f32 = 0.2;
+    /// let measurement_delta = measurement - pid.previous_measurement();
+    /// let measurement_delta_filtered = filter.update(measurement_delta);
+    ///
+    /// let output = pid.update_delta(measurement, measurement_delta_filtered, delta_t);
+    ///
+    /// assert_eq!(-0.010_000_005, output);
+    ///
+    fn update_delta(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
+        self.update_delta_iterm(measurement, measurement_delta, self.setpoint - measurement, delta_t)
+    }
+
+    fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, i_term_error: T, delta_t: T) -> T {
+        self.measurement_previous = measurement;
+        let error = self.setpoint - measurement;
+        self.error_derivative = -measurement_delta / delta_t; // note minus sign, error delta has reverse polarity to measurement delta
+        // Partial PID sum, excludes ITerm
+        // has additional S setpoint(openloop) and K kick(setpoint derivative) terms
+        let partial_sum = self.pid.kp * error
+            + self.pid.kd * self.error_derivative
+            + self.pid.ks * self.setpoint
+            + self.pid.kk * self.setpoint_derivative;
+
+        if self.integral_threshold == T::zero() || (error).abs() >= self.integral_threshold {
+            // "integrate" the error
+            self.error_integral = self.error_integral + self.pid.ki * i_term_error * delta_t; // Euler integration
+            //self.error_integral += self.pid.ki*0.5F*(iTermError + _errorPrevious)*delta_t; // integration using trapezoid rule
+            // Anti-windup via integral clamping
+            if self.integral_max > T::zero() && self.error_integral > self.integral_max {
+                self.error_integral = self.integral_max;
+            } else if self.integral_min < T::zero() && self.error_integral < self.integral_min {
+                self.error_integral = self.integral_min;
+            }
+        }
+        self.error_previous = error;
+
+        if self.output_saturation_value > T::zero() {
+            // Anti-windup by avoiding output saturation.
+            // Check if partialSum + self.error_integral saturates the output
+            // If so, the excess value above saturation does not help convergence to the setpoint and will result in
+            // overshoot when the P value eventually comes down.
+            // So limit the self.error_integral to a value that avoids output saturation.
+            if self.error_integral > self.output_saturation_value - partial_sum {
+                self.error_integral = self.output_saturation_value - partial_sum;
+                if self.error_integral < T::zero() {
+                    self.error_integral = T::zero();
+                }
+            } else if self.error_integral < -self.output_saturation_value - partial_sum {
+                self.error_integral = -self.output_saturation_value - partial_sum;
+                if self.error_integral > T::zero() {
+                    self.error_integral = T::zero();
+                }
+            }
+        }
+
+        // The PID calculation with additional S setpoint(openloop) and K kick(setpoint derivative) terms
+        //  P+D+S+K +  I
+        partial_sum + self.error_integral
+    }
+
+    fn update_sp(&mut self, measurement: T) -> T {
+        self.measurement_previous = measurement;
+        let error = self.setpoint - measurement;
+        self.error_previous = error;
+
+        // The P (no I, no D) calculation with additional S setpoint(openloop) term
+        //       P                   + S
+        self.pid.kp * error + self.pid.ks * self.setpoint
+    }
+
+    fn update_spi(&mut self, measurement: T, delta_t: T) -> T {
+        self.measurement_previous = measurement;
+        let error = self.setpoint - measurement;
+        let partial_sum: T = self.pid.kp * error + self.pid.ks * self.setpoint;
+
+        if self.integral_threshold == T::zero() || error.abs() >= self.integral_threshold {
+            // "integrate" the error
+            self.error_integral = self.error_integral + self.pid.ki * error * delta_t; // Euler integration
+
+            //_error_integral += self.pid.ki*0.5F*(error + self.errorPrevious)*delta_t; // integration using trapezoid rule
+            // Anti-windup via integral clamping
+            if self.integral_max > T::zero() && self.error_integral > self.integral_max {
+                self.error_integral = self.integral_max;
+            } else if self.integral_min < T::zero() && self.error_integral < self.integral_min {
+                self.error_integral = self.integral_min;
+            }
+        }
+        self.error_previous = error;
+
+        if self.output_saturation_value > T::zero() {
+            // Anti-windup by avoiding output saturation.
+            // Check if partial_sum + self.error_integral saturates the output
+            // If so, the excess value above saturation does not help convergence to the setpoint and will result in
+            // overshoot when the P value eventually comes down.
+            // So limit the self.error_integral to a value that avoids output saturation.
+            if self.error_integral > self.output_saturation_value - partial_sum {
+                self.error_integral = self.output_saturation_value - partial_sum;
+                if self.error_integral < T::zero() {
+                    self.error_integral = T::zero();
+                }
+            } else if self.error_integral < -self.output_saturation_value - partial_sum {
+                self.error_integral = -self.output_saturation_value - partial_sum;
+                if self.error_integral < T::zero() {
+                    self.error_integral = T::zero();
+                }
+            }
+        }
+
+        // The PI (no D) calculation with additional S setpoint(openloop) term
+        // P + S    + I
+        partial_sum + self.error_integral
+    }
+
+    fn update_skpi(&mut self, measurement: T, delta_t: T) -> T {
+        self.update_spi(measurement, delta_t) + self.pid.kk * self.setpoint_derivative
+    }
+
+    fn update_spd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
+        self.measurement_previous = measurement;
+        let error = self.setpoint - measurement;
+        self.error_previous = error;
+
+        self.error_derivative = -measurement_delta / delta_t; // note minus sign, error delta has reverse polarity to measurement delta
+
+        // The PD (no I) calculation with additional S setpoint(openloop) term
+        //       P                   + D                                   + S
+        self.pid.kp * error + self.pid.kd * self.error_derivative + self.pid.ks * self.setpoint
+    }
+
+    fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
+        self.update_spd(measurement, measurement_delta, delta_t) + self.pid.kk * self.setpoint_derivative
+    }
+}
+
+impl<T> PidController<T>
+where
+    T: Copy + Zero + Neg<Output = T>,
+{
     pub fn set_kp(&mut self, kp: T) {
         self.pid.kp = kp;
     }
@@ -179,12 +380,6 @@ where
         self.setpoint = setpoint;
     }
 
-    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, delta_t: T) {
-        self.setpoint_previous = self.setpoint;
-        self.setpoint = setpoint;
-        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / delta_t;
-    }
-
     pub fn set_setpoint_derivative(&mut self, setpoint_derivative: T) {
         self.setpoint_derivative = setpoint_derivative;
     }
@@ -197,179 +392,31 @@ where
         self.setpoint_previous
     }
 
-    pub fn setpoint_delta(&self) -> T {
-        self.setpoint - self.setpoint_previous
-    }
-
     /// previous measurement, useful for `Dterm` filtering.
     pub fn previous_measurement(&self) -> T {
         self.measurement_previous
     }
+}
 
-    /// PID update.
-    /// ```
-    /// # use pidsk_controller::PidController;
-    ///
-    /// let delta_t: f32 = 0.01;
-    /// let mut pid = PidController::<f32>::new(0.1, 0.0, 0.0);
-    ///
-    /// pid.set_setpoint(8.7);
-    ///
-    /// let measurement:f32 = 9.2;
-    /// let output = pid.update(measurement, delta_t);
-    ///
-    /// assert_eq!(-0.05, output);
-    /// ```
-    pub fn update(&mut self, measurement: T, delta_t: T) -> T {
-        self.update_delta(measurement, measurement - self.measurement_previous, delta_t)
+impl<T> PidController<T>
+where
+    T: Copy + Sub<Output = T> + Div<Output = T>,
+{
+    pub fn setpoint_delta(&self) -> T {
+        self.setpoint - self.setpoint_previous
     }
 
-    /// PID update with `measurement_delta` specified.
-    /// This allows the user to filter `measurement_delta` with a filter of their choice.
-    ///
-    /// ```
-    /// # use pidsk_controller::PidController;
-    /// # use signal_filters::{Pt1Filterf32,SignalFilter};
-    ///
-    /// let delta_t: f32 = 0.01;
-    /// let mut pid = PidController::<f32>::new(0.1, 0.0, 0.01);
-    /// let mut filter = Pt1Filterf32::new(1.0);
-    ///
-    /// pid.set_setpoint(2.1);
-    ///
-    /// let measurement:f32 = 0.2;
-    /// let measurement_delta = measurement - pid.previous_measurement();
-    /// let measurement_delta_filtered = filter.update(measurement_delta);
-    ///
-    /// let output = pid.update_delta(measurement, measurement_delta_filtered, delta_t);
-    ///
-    /// assert_eq!(-0.010000005, output);
-    ///
-    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
-        self.update_delta_iterm(measurement, measurement_delta, self.setpoint - measurement, delta_t)
+    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, delta_t: T) {
+        self.setpoint_previous = self.setpoint;
+        self.setpoint = setpoint;
+        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / delta_t;
     }
+}
 
-    pub fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, i_term_error: T, delta_t: T) -> T {
-        self.measurement_previous = measurement;
-        let error = self.setpoint - measurement;
-        self.error_derivative = -measurement_delta / delta_t; // note minus sign, error delta has reverse polarity to measurement delta
-        // Partial PID sum, excludes ITerm
-        // has additional S setpoint(openloop) and F feedforward(setpoint derivative) terms
-        let partial_sum = self.pid.kp * error
-            + self.pid.kd * self.error_derivative
-            + self.pid.ks * self.setpoint
-            + self.pid.kk * self.setpoint_derivative;
-
-        if self.integral_threshold == T::zero() || (error).abs() >= self.integral_threshold {
-            // "integrate" the error
-            self.error_integral = self.error_integral + self.pid.ki * i_term_error * delta_t; // Euler integration
-            //self.error_integral += self.pid.ki*0.5F*(iTermError + _errorPrevious)*delta_t; // integration using trapezoid rule
-            // Anti-windup via integral clamping
-            if self.integral_max > T::zero() && self.error_integral > self.integral_max {
-                self.error_integral = self.integral_max;
-            } else if self.integral_min < T::zero() && self.error_integral < self.integral_min {
-                self.error_integral = self.integral_min;
-            }
-        }
-        self.error_previous = error;
-
-        if self.output_saturation_value > T::zero() {
-            // Anti-windup by avoiding output saturation.
-            // Check if partialSum + self.error_integral saturates the output
-            // If so, the excess value above saturation does not help convergence to the setpoint and will result in
-            // overshoot when the P value eventually comes down.
-            // So limit the self.error_integral to a value that avoids output saturation.
-            if self.error_integral > self.output_saturation_value - partial_sum {
-                self.error_integral = self.output_saturation_value - partial_sum;
-                if self.error_integral < T::zero() {
-                    self.error_integral = T::zero();
-                }
-            } else if self.error_integral < -self.output_saturation_value - partial_sum {
-                self.error_integral = -self.output_saturation_value - partial_sum;
-                if self.error_integral > T::zero() {
-                    self.error_integral = T::zero();
-                }
-            }
-        }
-
-        // The PID calculation with additional S setpoint(openloop) and F feedforward(setpoint derivative) terms
-        //                   P+D+S+F    +  I
-        partial_sum + self.error_integral
-    }
-
-    pub fn update_sp(&mut self, measurement: T) -> T {
-        self.measurement_previous = measurement;
-        let error = self.setpoint - measurement;
-        self.error_previous = error;
-
-        // The P (no I, no D) calculation with additional S setpoint(openloop) term
-        //                   P             + S
-        self.pid.kp * error + self.pid.ks * self.setpoint
-    }
-
-    pub fn update_spi(&mut self, measurement: T, delta_t: T) -> T {
-        self.measurement_previous = measurement;
-        let error = self.setpoint - measurement;
-        let partial_sum: T = self.pid.kp * error + self.pid.ks * self.setpoint;
-
-        if self.integral_threshold == T::zero() || error.abs() >= self.integral_threshold {
-            // "integrate" the error
-            self.error_integral = self.error_integral + self.pid.ki * error * delta_t; // Euler integration
-
-            //_error_integral += self.pid.ki*0.5F*(error + self.errorPrevious)*delta_t; // integration using trapezoid rule
-            // Anti-windup via integral clamping
-            if self.integral_max > T::zero() && self.error_integral > self.integral_max {
-                self.error_integral = self.integral_max;
-            } else if self.integral_min < T::zero() && self.error_integral < self.integral_min {
-                self.error_integral = self.integral_min;
-            }
-        }
-        self.error_previous = error;
-
-        if self.output_saturation_value > T::zero() {
-            // Anti-windup by avoiding output saturation.
-            // Check if partialSum + self.error_integral saturates the output
-            // If so, the excess value above saturation does not help convergence to the setpoint and will result in
-            // overshoot when the P value eventually comes down.
-            // So limit the self.error_integral to a value that avoids output saturation.
-            if self.error_integral > self.output_saturation_value - partial_sum {
-                self.error_integral = self.output_saturation_value - partial_sum;
-                if self.error_integral < T::zero() {
-                    self.error_integral = T::zero();
-                }
-            } else if self.error_integral < -self.output_saturation_value - partial_sum {
-                self.error_integral = -self.output_saturation_value - partial_sum;
-                if self.error_integral < T::zero() {
-                    self.error_integral = T::zero();
-                }
-            }
-        }
-
-        // The PI (no D) calculation with additional S setpoint(openloop) term
-        // P + S    + I
-        partial_sum + self.error_integral
-    }
-
-    pub fn update_skpi(&mut self, measurement: T, delta_t: T) -> T {
-        self.update_spi(measurement, delta_t) + self.pid.kk * self.setpoint_derivative
-    }
-
-    pub fn update_spd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
-        self.measurement_previous = measurement;
-        let error = self.setpoint - measurement;
-        self.error_previous = error;
-
-        self.error_derivative = -measurement_delta / delta_t; // note minus sign, error delta has reverse polarity to measurement delta
-
-        // The PD (no I) calculation with additional S setpoint(openloop) term
-        //       P                   + D                                   + S
-        self.pid.kp * error + self.pid.kd * self.error_derivative + self.pid.ks * self.setpoint
-    }
-
-    pub fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
-        self.update_spd(measurement, measurement_delta, delta_t) + self.pid.kk * self.setpoint_derivative
-    }
-
+impl<T> PidController<T>
+where
+    T: Copy + Zero + Signed+ PartialEq + Add<Output = T>  + Mul<Output = T>,
+{
     // accessor functions to obtain error values
     pub fn error(&self) -> PidError<T> {
         PidError {
@@ -483,645 +530,5 @@ where
             integral_threshold: T::zero(),
             output_saturation_value: T::zero(),
         }
-    }
-}
-
-impl<T> Default for PidController<T>
-where
-    T: Copy + Zero + Neg + PartialOrd + PartialEq + Signed + Add<Output = T> + Sub<Output = T> + Mul<Output = T>,
-{
-    fn default() -> Self {
-        Self::new(T::one(), T::zero(), T::zero())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::float_cmp)]
-    use super::*;
-    #[allow(unused)]
-    use approx::assert_abs_diff_eq;
-    macro_rules! assert_near {
-        ($left:expr, $right:expr) => {
-            approx::assert_abs_diff_eq!($left, $right, epsilon = 4e-6);
-        };
-    }
-
-    fn is_normal<T: Sized + Send + Sync + Unpin>() {}
-
-    #[test]
-    fn normal_types() {
-        is_normal::<PidController<f32>>();
-    }
-
-    #[test]
-    fn default() {
-        let pid: PidController<f32> = PidController::default();
-        assert_eq!(1.0, pid.kp());
-        assert_eq!(0.0, pid.ki());
-        assert_eq!(0.0, pid.kd());
-        assert_eq!(0.0, pid.ks());
-        assert_eq!(0.0, pid.kk());
-        assert_eq!(0.0, pid.setpoint());
-    }
-
-    #[test]
-    fn test_pid_init() {
-        let pid = PidController::new(0.0, 0.0, 0.0);
-        assert_eq!(0.0, pid.kp());
-        assert_eq!(0.0, pid.ki());
-        assert_eq!(0.0, pid.kd());
-        assert_eq!(0.0, pid.ks());
-        assert_eq!(0.0, pid.kk());
-        assert_eq!(0.0, pid.setpoint());
-
-        let error = pid.error();
-        assert_eq!(error.p, 0.0);
-        assert_eq!(error.i, 0.0);
-        assert_eq!(error.d, 0.0);
-        assert_eq!(error.s, 0.0);
-        assert_eq!(error.k, 0.0);
-    }
-
-    #[test]
-    fn test_pid() {
-        let mut pid = PidController::new(5.0, 3.0, 1.0);
-
-        assert_eq!(5.0, pid.kp());
-        assert_eq!(3.0, pid.ki());
-        assert_eq!(1.0, pid.kd());
-        assert_eq!(0.0, pid.ks());
-        assert_eq!(0.0, pid.kk());
-        assert_eq!(0.0, pid.setpoint());
-
-        let delta_t: f32 = 0.01;
-        let input: f32 = 0.5;
-        let output = pid.update(input, delta_t);
-
-        let error = pid.error();
-        assert_eq!(-input * 5.0, error.p);
-        assert_eq!(-input * 3.0 * delta_t, error.i);
-        assert_eq!(-input * 1.0 / delta_t, error.d);
-        assert_eq!(error.p + error.i + error.d, output);
-    }
-
-    #[test]
-    fn update() {
-        use crate::PidController;
-        let delta_t: f32 = 0.01;
-        let mut pid = PidController::<f32>::new(0.1, 0.0, 0.0);
-        pid.set_setpoint(8.7);
-
-        let measurement: f32 = 9.2;
-        let output = pid.update(measurement, delta_t);
-        assert_eq!(-0.05, output);
-    }
-
-    #[test]
-    fn update_delta() {
-        use signal_filters::{Pt1Filterf32, SignalFilter};
-        let delta_t: f32 = 0.01;
-        let mut pid = PidController::<f32>::new(0.1, 0.0, 0.01);
-        let mut filter = Pt1Filterf32::new(1.0);
-
-        pid.set_setpoint(2.1);
-
-        let measurement: f32 = 0.2;
-        let measurement_delta = measurement - pid.previous_measurement();
-        let measurement_delta_filtered = filter.update(measurement_delta);
-        let output = pid.update_delta(measurement, measurement_delta_filtered, delta_t);
-        assert_near!(-0.010_000_005, output);
-    }
-
-    #[test]
-    fn update_delta_iterm() {
-        use signal_filters::{Pt1Filterf32, SignalFilter};
-        let delta_t: f32 = 0.01;
-        let mut pid = PidController::new(0.1, 0.05, 0.01);
-        let mut filter = Pt1Filterf32::new(1.0);
-
-        pid.set_setpoint(2.1);
-
-        let measurement: f32 = 0.2;
-
-        let measurement_delta = measurement - pid.previous_measurement();
-        let measurement_delta_filtered = filter.update(measurement_delta);
-
-        let iterm_relax_factor = 0.5; // set to a constant for the example, in practice it would vary depending on setpoint and/or measurement
-        let iterm_error = (pid.setpoint() - measurement) * iterm_relax_factor;
-
-        let output = pid.update_delta_iterm(measurement, measurement_delta_filtered, iterm_error, delta_t);
-
-        assert_near!(-0.009_525_006, output);
-    }
-
-    #[test]
-    fn test_p_controller() {
-        let delta_t: f32 = 1.0;
-        let mut pid = PidController::new(1.0, 0.0, 0.0);
-
-        assert_eq!(1.0, pid.kp());
-        assert_eq!(0.0, pid.ki());
-        assert_eq!(0.0, pid.kd());
-        assert_eq!(0.0, pid.ks());
-        assert_eq!(0.0, pid.kk());
-        assert_eq!(0.0, pid.setpoint());
-
-        let mut output = pid.update(0.0, delta_t);
-        let mut error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, error.i);
-        assert_eq!(0.0, error.d);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(error.p + error.i + error.d, output);
-
-        pid.set_setpoint(5.0);
-        output = pid.update(0.0, delta_t);
-        error = pid.error();
-        assert_eq!(5.0, output);
-        assert_eq!(5.0, error.p);
-        assert_eq!(error.p + error.i + error.d, output);
-
-        output = pid.update(1.0, delta_t);
-        error = pid.error();
-        assert_eq!(4.0, output);
-        assert_eq!(4.0, error.p);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(3.0, output);
-        assert_eq!(3.0, error.p);
-
-        output = pid.update(3.0, delta_t);
-        error = pid.error();
-        assert_eq!(2.0, output);
-        assert_eq!(2.0, error.p);
-
-        output = pid.update(4.0, delta_t);
-        error = pid.error();
-        assert_eq!(1.0, output);
-        assert_eq!(1.0, error.p);
-
-        output = pid.update(5.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.0, output);
-        assert_eq!(0.0, error.p);
-
-        output = pid.update(6.0, delta_t);
-        error = pid.error();
-        assert_eq!(-1.0, output);
-        assert_eq!(-1.0, error.p);
-
-        output = pid.update(5.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.0, output);
-        assert_eq!(0.0, error.p);
-    }
-
-    #[test]
-    fn test_pi_controller() {
-        let delta_t: f32 = 1.0;
-        let mut pid = PidController::new(0.3, 0.2, 0.0);
-
-        assert_eq!(0.3, pid.kp());
-        assert_eq!(0.2, pid.ki());
-        assert_eq!(0.0, pid.kd());
-        assert_eq!(0.0, pid.ks());
-        assert_eq!(0.0, pid.kk());
-        assert_eq!(0.0, pid.setpoint());
-
-        let mut output = pid.update(0.0, delta_t);
-        let mut error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, error.i);
-        assert_eq!(0.0, error.d);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(error.p + error.i + error.d, output);
-
-        pid.set_setpoint(5.0);
-        output = pid.update(0.0, delta_t);
-        error = pid.error();
-        assert_eq!(1.5, error.p);
-        assert_eq!(5.0, pid.previous_error());
-        assert_eq!(1.0, error.i);
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(2.5, output);
-
-        output = pid.update(1.0, delta_t);
-        error = pid.error();
-        assert_eq!(1.2, error.p);
-        assert_eq!(4.0, pid.previous_error());
-        assert_eq!(1.8, error.i); // 1.0 + (5.0 - 1.0) * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(3.0, output);
-
-        output = pid.update(4.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.3, error.p);
-        assert_eq!(1.0, pid.previous_error());
-        assert_eq!(2.0, error.i); // 1.8 + (5.0 - 4.0) * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(2.3, output);
-
-        output = pid.update(7.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.6, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(1.6, error.i); // 2.0 + -2.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(1.0, output);
-
-        output = pid.update(6.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.3, error.p);
-        assert_eq!(-1.0, pid.previous_error());
-        assert_eq!(1.4, error.i); // 1.6 + -1.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_near!(1.1, output);
-
-        output = pid.update(5.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(1.4, error.i); // 1.5 + (0.0 - 1.0) * 0.2 /2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(1.4, output);
-
-        output = pid.update(5.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(1.4, error.i); // 1.4 + (0.0 + 0.0) * 0.2 / 2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(1.4, output);
-    }
-
-    #[test]
-    fn test_update_pi() {
-        let delta_t: f32 = 1.0;
-        let mut pid = PidController::new(0.3, 0.2, 0.0);
-
-        assert_eq!(0.3, pid.kp());
-        assert_eq!(0.2, pid.ki());
-        assert_eq!(0.0, pid.kd());
-        assert_eq!(0.0, pid.ks());
-        assert_eq!(0.0, pid.kk());
-        assert_eq!(0.0, pid.setpoint());
-
-        let mut output = pid.update_spi(0.0, delta_t);
-        let mut error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, error.i);
-        assert_eq!(0.0, error.d);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(error.p + error.i + error.d, output);
-
-        pid.set_setpoint(5.0);
-        output = pid.update_spi(0.0, delta_t);
-        error = pid.error();
-        assert_eq!(1.5, error.p);
-        assert_eq!(5.0, pid.previous_error());
-        assert_eq!(1.0, error.i); // 5.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(2.5, output);
-
-        output = pid.update_spi(1.0, delta_t);
-        error = pid.error();
-        assert_eq!(1.2, error.p);
-        assert_eq!(4.0, pid.previous_error());
-        assert_eq!(1.8, error.i); // 1.0 + 4.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(3.0, output);
-
-        output = pid.update_spi(4.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.3, error.p);
-        assert_eq!(1.0, pid.previous_error());
-        assert_eq!(2.0, error.i); // 1.8 + 1.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(2.3, output);
-
-        output = pid.update_spi(7.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.6, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(1.6, error.i); // 2.0 + -2.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(1.0, output);
-
-        output = pid.update_spi(6.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.3, error.p);
-        assert_eq!(-1.0, pid.previous_error());
-        assert_eq!(1.4, error.i); // 1.6 + -1.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_near!(1.1, output);
-
-        output = pid.update_spi(5.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(1.4, error.i); // 1.4 + 0.0 * 0.2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(1.4, output);
-
-        output = pid.update_spi(5.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(1.4, error.i); // 1.4 + (0.0 + 0.0) * 0.2 / 2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-        assert_eq!(1.4, output);
-    }
-
-    #[test]
-    fn test_integration_on_off() {
-        let delta_t: f32 = 1.0;
-        let mut pid = PidController::new(0.2, 0.3, 0.0);
-
-        assert_eq!(0.0, pid.setpoint());
-
-        let mut output = pid.update(0.0, delta_t);
-        assert_eq!(0.0, output);
-        let mut error = pid.error();
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(0.0, error.i);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(-0.6, error.i); // 0.0 + -2.0* 0.3
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(-1.0, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(-1.2, error.i); // -0.6 +-2.0 * 0.3
-        assert_eq!(-1.6, output);
-
-        // Integration OFF
-        pid.switch_integration_off();
-        error = pid.error();
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(0.0, error.i);
-
-        output = pid.update(0.0, delta_t);
-        assert_eq!(0.0, output);
-        error = pid.error();
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(0.0, error.i);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(0.0, error.i);
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(-0.4, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(0.0, error.i);
-        assert_eq!(-0.4, output);
-
-        // Integration back ON
-        pid.switch_integration_on();
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(0.0, error.i);
-
-        output = pid.update(0.0, delta_t);
-        assert_eq!(0.0, output);
-        error = pid.error();
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(0.0, error.i); // 0.0 + 0.0 * 0.3
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(-0.6, error.i); // - 0.3 + (0.0 - 2.0) * 0.3 / 2
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(-1.0, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, pid.previous_error());
-        assert_eq!(-1.2, error.i); // -0.6 + (-2.0 - 2.0) * 0.3 / 2
-        assert_eq!(-1.6, output);
-
-        pid.reset_all();
-        error = pid.error();
-        assert_eq!(0.0, pid.setpoint());
-        assert_eq!(0.0, pid.previous_setpoint());
-        assert_eq!(0.0, pid.setpoint_delta());
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(0.0, pid.previous_measurement());
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, error.i);
-        assert_eq!(0.0, error.d);
-        assert_eq!(0.0, error.s);
-        assert_eq!(0.0, error.k);
-    }
-
-    #[test]
-    fn test_integral_limit() {
-        let delta_t: f32 = 1.0;
-        let mut pid = PidController::new(0.2, 0.3, 0.0);
-        pid.set_integral_limit(2.0);
-
-        assert_eq!(0.0, pid.setpoint());
-
-        let mut output = pid.update(0.0, delta_t);
-        assert_eq!(0.0, output);
-        let mut error = pid.error();
-        assert_eq!(0.0, error.i);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-0.6, error.i);
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(-1.0, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-1.2, error.i);
-        assert_eq!(-1.6, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_near!(-1.8, error.i);
-        assert_eq!(-2.2, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, error.i);
-        assert_eq!(-2.4, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-2.0, error.i);
-        assert_eq!(-2.4, output);
-    }
-
-    #[test]
-    fn test_integral_saturation_positive() {
-        let delta_t: f32 = 1.0;
-        let mut pid = PidController::new(0.2, 0.3, 0.0);
-        pid.set_output_saturation_value(1.5);
-
-        assert_eq!(0.0, pid.setpoint());
-
-        let mut output = pid.update(0.0, delta_t);
-        assert_eq!(0.0, output);
-        let mut error = pid.error();
-        assert_eq!(0.0, error.i);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-0.6, error.i);
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(-1.0, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-1.1, error.i);
-        assert_eq!(-1.5, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-1.1, error.i);
-        assert_eq!(-1.5, output);
-
-        output = pid.update(2.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.4, error.p);
-        assert_eq!(-1.1, error.i);
-        assert_eq!(-1.5, output);
-
-        output = pid.update(1.5, delta_t);
-        error = pid.error();
-        assert_eq!(-0.3, error.p);
-        assert_eq!(-1.2, error.i);
-        assert_eq!(-1.5, output);
-
-        output = pid.update(1.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.2, error.p);
-        assert_eq!(-1.3, error.i);
-        assert_eq!(-1.5, output);
-
-        output = pid.update(0.5, delta_t);
-        error = pid.error();
-        assert_eq!(-0.1, error.p);
-        assert_eq!(-0.5, pid.previous_error());
-        assert_eq!(-1.4, error.i);
-        assert_eq!(-1.5, output);
-
-        output = pid.update(0.2, delta_t);
-        error = pid.error();
-        assert_near!(-0.04, error.p);
-        assert_eq!(-0.2, pid.previous_error());
-        assert_eq!(-1.46, error.i);
-        assert_eq!(-1.5, output);
-
-        output = pid.update(0.0, delta_t);
-        error = pid.error();
-        assert_eq!(-0.0, error.p);
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(-1.46, error.i); // -1.46 + 0.0 * 0.3
-        assert_eq!(-1.46, output);
-
-        output = pid.update(0.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.0, error.p);
-        assert_eq!(0.0, pid.previous_error());
-        assert_eq!(-1.46, error.i); // -1.495 + 0.0 * 0.3
-        assert_eq!(-1.46, output);
-    }
-
-    #[test]
-    fn test_integral_saturation_negative() {
-        let delta_t: f32 = 1.0;
-        let mut pid = PidController::new(0.2, 0.3, 0.0);
-        pid.set_output_saturation_value(1.5);
-
-        assert_eq!(0.0, pid.setpoint());
-
-        let mut output = pid.update(0.0, delta_t);
-        assert_eq!(0.0, output);
-        let mut error = pid.error();
-        assert_eq!(0.0, error.i);
-
-        output = pid.update(-2.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.4, error.p);
-        assert_eq!(0.6, error.i);
-        assert_eq!(error.p + error.i, output);
-        assert_eq!(1.0, output);
-
-        output = pid.update(-2.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.4, error.p);
-        assert_eq!(1.1, error.i);
-        assert_eq!(1.5, output);
-
-        output = pid.update(-2.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.4, error.p);
-        assert_eq!(1.1, error.i);
-        assert_eq!(1.5, output);
-
-        output = pid.update(-2.0, delta_t);
-        error = pid.error();
-        assert_eq!(0.4, error.p);
-        assert_eq!(1.1, error.i);
-        assert_eq!(1.5, output);
     }
 }

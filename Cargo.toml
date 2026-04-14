@@ -11,7 +11,7 @@ keywords = ["PID", "feed-forward", "control", "no-std"]
 categories = [
     "embedded",
     "mathematics",
-    "no-std::no-alloc",
+    "no-std",
     "science::robotics",
 ]
 
