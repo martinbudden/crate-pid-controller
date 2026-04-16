@@ -173,7 +173,7 @@ where
         self.update_delta_iterm(measurement, measurement_delta, self.setpoint - measurement, delta_t)
     }
 
-    fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, i_term_error: T, delta_t: T) -> T {
+    fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, delta_t: T) -> T {
         self.measurement_previous = measurement;
         let error = self.setpoint - measurement;
         self.error_derivative = -measurement_delta / delta_t; // note minus sign, error delta has reverse polarity to measurement delta
@@ -186,7 +186,7 @@ where
 
         if self.limits.integral_threshold == T::zero() || (error).abs() >= self.limits.integral_threshold {
             // "integrate" the error
-            self.error_integral = self.error_integral + self.gains.ki * i_term_error * delta_t; // Euler integration
+            self.error_integral = self.error_integral + self.gains.ki * iterm_error * delta_t; // Euler integration
             //self.error_integral += self.pid.ki*0.5F*(iTermError + _errorPrevious)*delta_t; // integration using trapezoid rule
             // Anti-windup via integral clamping
             if self.limits.integral_max > T::zero() && self.error_integral > self.limits.integral_max {
