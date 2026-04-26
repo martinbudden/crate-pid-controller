@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "pidsk-controller"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "approx",
  "num-traits",
@@ -66,9 +66,9 @@ checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
 name = "signal-filters"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97e96e43887c2ed9c67a862896ae2ee7daf9a5495b0ceddae3dba56933ad2591"
+checksum = "0bf4af7e5276c0e6f1eb857310d67cd3de9875845761c954463088dc8639a1b2"
 dependencies = [
  "num-traits",
  "rustc_version",
@@ -77,9 +77,9 @@ dependencies = [
 
 [[package]]
 name = "vqm"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cdb1b4cdc31d7aaf976d77d53351267227e34766b5980598c6ac8a987332170"
+checksum = "0724431caed98b5a15ab21a5ddef71bfbb65fcee169c9170daf6c5dc4d669c44"
 dependencies = [
  "approx",
  "cfg-if",
