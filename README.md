@@ -17,7 +17,7 @@ The PID controller has the following features:
    or it can be limited when the output saturates. Both methods can be used together, if desired.
 5. Additional update function, `update_delta`, with a `measurement_delta` parameter. Providing this parameter
    allows filtering of `measurement_delta` before the PID calculation.
-6. Support for dynamic PID control, where the PID constants are changed at runtime, in particular:
+6. Support for dynamic PID control, where the PID gains are changed at runtime, in particular:
     1. Ability to switch integration off. Useful, for example, for a vehicle that has its motors turned on, but has not yet started moving.
     2. Additional update function `update_delta_iterm`, with a `iterm_error` parameter. This allows the user to calculate the I-term
        error. This can be used, for example, to implement Iterm relaxation.
@@ -28,7 +28,7 @@ The PID controller has the following features:
 
 The PID controller deliberately does not implement these features:
 
-1. PID "negation". Some PID controllers provide a function to negate all the PID constants. If this is required,
+1. PID "negation". Some PID controllers provide a function to negate all the PID gains. If this is required,
    just subtract the PID output, rather than add it.
 2. Option to calculate derivative on input. This can be achieved by calculating `input_delta` rather than `measurement_delta`
    and using it as input to the `update_delta` function.

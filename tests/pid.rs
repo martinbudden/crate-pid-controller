@@ -1,5 +1,5 @@
 use pidsk_controller::PidController;
-use pidsk_controller::{Pid, PidErrorf32, PidGainsf32, Pidf32};
+use pidsk_controller::{PidErrorf32, PidGainsf32, Pidf32};
 #[cfg(test)]
 mod tests {
     #![allow(clippy::float_cmp)]
@@ -37,8 +37,9 @@ mod tests {
 
     #[test]
     fn test_pid_init() {
-        let pid = Pidf32::new(0.0, 0.0, 0.0);
-        assert_eq!(0.0, pid.kp());
+        let pid_gains = PidGainsf32::default();
+        let pid = Pidf32::new(pid_gains);
+        assert_eq!(1.0, pid.kp());
         assert_eq!(0.0, pid.ki());
         assert_eq!(0.0, pid.kd());
         assert_eq!(0.0, pid.ks());
@@ -55,7 +56,14 @@ mod tests {
 
     #[test]
     fn test_pid() {
-        let mut pid = Pidf32::new(5.0, 3.0, 1.0);
+        let pid_gains = PidGainsf32 {
+            kp: 5.0,
+            ki: 3.0,
+            kd: 1.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+        let mut pid = Pidf32::new(pid_gains);
 
         assert_eq!(5.0, pid.kp());
         assert_eq!(3.0, pid.ki());
@@ -78,7 +86,15 @@ mod tests {
     #[test]
     fn update() {
         let delta_t: f32 = 0.01;
-        let mut pid = Pid::<f32>::new(0.1, 0.0, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.1,
+            ki: 0.0,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+
+        let mut pid = Pidf32::new(pid_gains);
         pid.set_setpoint(8.7);
 
         let measurement: f32 = 9.2;
@@ -89,7 +105,14 @@ mod tests {
     #[test]
     fn adjust() {
         let delta_t: f32 = 0.01;
-        let mut pid_controller = Pidf32::new(0.1, 0.0, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.1,
+            ki: 0.0,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+        let mut pid_controller = Pidf32::new(pid_gains);
         pid_controller.set_setpoint(8.7);
 
         let measurement: f32 = 9.2;
@@ -101,7 +124,14 @@ mod tests {
     fn update_delta() {
         use signal_filters::{Pt1Filterf32, SignalFilter};
         let delta_t: f32 = 0.01;
-        let mut pid = Pid::<f32>::new(0.1, 0.0, 0.01);
+        let pid_gains = PidGainsf32 {
+            kp: 0.1,
+            ki: 0.0,
+            kd: 0.01,
+            ks: 0.0,
+            kk: 0.0,
+        };
+        let mut pid = Pidf32::new(pid_gains);
         let mut filter = Pt1Filterf32::new(1.0);
 
         pid.set_setpoint(2.1);
@@ -117,7 +147,14 @@ mod tests {
     fn update_delta_iterm() {
         use signal_filters::{Pt1Filterf32, SignalFilter};
         let delta_t: f32 = 0.01;
-        let mut pid = Pidf32::new(0.1, 0.05, 0.01);
+        let pid_gains = PidGainsf32 {
+            kp: 0.1,
+            ki: 0.05,
+            kd: 0.01,
+            ks: 0.0,
+            kk: 0.0,
+        };
+        let mut pid = Pidf32::new(pid_gains);
         let mut filter = Pt1Filterf32::new(1.0);
 
         pid.set_setpoint(2.1);
@@ -138,7 +175,14 @@ mod tests {
     #[test]
     fn test_p_controller() {
         let delta_t: f32 = 1.0;
-        let mut pid = Pidf32::new(1.0, 0.0, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 1.0,
+            ki: 0.0,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+        let mut pid = Pidf32::new(pid_gains);
 
         assert_eq!(1.0, pid.kp());
         assert_eq!(0.0, pid.ki());
@@ -202,7 +246,15 @@ mod tests {
     #[test]
     fn test_pi_controller() {
         let delta_t: f32 = 1.0;
-        let mut pid = Pidf32::new(0.3, 0.2, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.3,
+            ki: 0.2,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+
+        let mut pid = Pidf32::new(pid_gains);
 
         assert_eq!(0.3, pid.kp());
         assert_eq!(0.2, pid.ki());
@@ -295,7 +347,15 @@ mod tests {
     #[test]
     fn test_update_pi() {
         let delta_t: f32 = 1.0;
-        let mut pid = Pidf32::new(0.3, 0.2, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.3,
+            ki: 0.2,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+
+        let mut pid = Pidf32::new(pid_gains);
 
         assert_eq!(0.3, pid.kp());
         assert_eq!(0.2, pid.ki());
@@ -388,7 +448,15 @@ mod tests {
     #[test]
     fn test_integration_on_off() {
         let delta_t: f32 = 1.0;
-        let mut pid = Pidf32::new(0.2, 0.3, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.2,
+            ki: 0.3,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+
+        let mut pid = Pidf32::new(pid_gains);
 
         assert_eq!(0.0, pid.setpoint());
 
@@ -485,7 +553,15 @@ mod tests {
     #[test]
     fn test_integral_limit() {
         let delta_t: f32 = 1.0;
-        let mut pid = Pidf32::new(0.2, 0.3, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.2,
+            ki: 0.3,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+
+        let mut pid = Pidf32::new(pid_gains);
         pid.set_integral_limit(2.0);
 
         assert_eq!(0.0, pid.setpoint());
@@ -530,7 +606,15 @@ mod tests {
     #[test]
     fn test_integral_saturation_positive() {
         let delta_t: f32 = 1.0;
-        let mut pid = Pidf32::new(0.2, 0.3, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.2,
+            ki: 0.3,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+
+        let mut pid = Pidf32::new(pid_gains);
         pid.set_output_saturation_value(1.5);
 
         assert_eq!(0.0, pid.setpoint());
@@ -609,7 +693,14 @@ mod tests {
     #[test]
     fn test_integral_saturation_negative() {
         let delta_t: f32 = 1.0;
-        let mut pid = Pidf32::new(0.2, 0.3, 0.0);
+        let pid_gains = PidGainsf32 {
+            kp: 0.2,
+            ki: 0.3,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+        let mut pid = Pidf32::new(pid_gains);
         pid.set_output_saturation_value(1.5);
 
         assert_eq!(0.0, pid.setpoint());

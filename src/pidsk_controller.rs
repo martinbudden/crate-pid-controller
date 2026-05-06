@@ -11,6 +11,18 @@ pub type Pidf64 = Pid<f64>;
 pub type PidGainsf64 = PidGains<f64>;
 pub type PidErrorf64 = PidErrors<f64>;
 
+pub trait ConstZero {
+    const ZERO: Self;
+}
+
+impl ConstZero for f32 {
+    const ZERO: Self = 0.0;
+}
+
+impl ConstZero for f64 {
+    const ZERO: Self = 0.0;
+}
+
 /// Gains for PID controller.
 /// Includes classical PID (proportional, integral, and derivative) gains and also
 /// setpoint gain (classical feed forward) and setpoint derivative gain (kick - called feedforward by Betaflight).<br>
@@ -26,12 +38,13 @@ pub struct PidGains<T> {
     pub ks: T, // setpoint gain
     pub kk: T, // setpoint derivative gain ('kick')
 }
+
 impl<T> Default for PidGains<T>
 where
     T: Copy + Default + Zero + One,
 {
     fn default() -> Self {
-        Self::new(T::one(), T::zero(), T::zero())
+        Self::new(T::one(), T::zero(), T::zero(), T::zero(), T::zero())
     }
 }
 
@@ -39,20 +52,14 @@ impl<T> PidGains<T>
 where
     T: Copy + Default,
 {
-    pub fn new(kp: T, ki: T, kd: T) -> Self {
-        Self {
-            kp,
-            ki,
-            kd,
-            ks: T::default(),
-            kk: T::default(),
-        }
+    pub const fn new(kp: T, ki: T, kd: T, ks: T, kk: T) -> Self {
+        Self { kp, ki, kd, ks, kk }
     }
 }
 
 /// Pid integral anti-windup parameters.<br>
 ///
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PidLimits<T> {
     /// Integral windup limit for positive integral.
     integral_max: T,
@@ -64,15 +71,57 @@ pub struct PidLimits<T> {
     output_saturation_value: T,
 }
 
+impl<T> Default for PidLimits<T>
+where
+    T: Copy + ConstZero,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> PidLimits<T>
+where
+    T: Copy + ConstZero,
+{
+    pub const fn new() -> Self {
+        Self {
+            integral_max: T::ZERO,
+            integral_min: T::ZERO,
+            integral_threshold: T::ZERO,
+            output_saturation_value: T::ZERO,
+        }
+    }
+}
+
 /// P, I, D, S, and K errors as calculated by PID controller.<br><br>
 ///
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PidErrors<T> {
     pub p: T,
     pub i: T,
     pub d: T,
     pub s: T,
     pub k: T,
+}
+
+impl<T> Default for PidErrors<T>
+where
+    T: Copy + Default + Zero,
+{
+    fn default() -> Self {
+        Self::new(T::zero(), T::zero(), T::zero(), T::zero(), T::zero())
+    }
+}
+
+impl<T> PidErrors<T>
+where
+    T: Copy + Default,
+{
+    #[allow(clippy::many_single_char_names)]
+    pub const fn new(p: T, i: T, d: T, s: T, k: T) -> Self {
+        Self { p, i, d, s, k }
+    }
 }
 
 /// PID controller with open loop control.
@@ -110,29 +159,29 @@ pub struct Pid<T> {
 /// ```
 impl<T> Default for Pid<T>
 where
-    T: Copy + Default + Zero + One,
+    T: Copy + ConstZero + Default + Zero + One,
 {
     fn default() -> Self {
-        Self::new(T::one(), T::zero(), T::zero())
+        Self::new(PidGains::default())
     }
 }
 
 impl<T> Pid<T>
 where
-    T: Copy + Default,
+    T: Copy + ConstZero,
 {
-    pub fn new(kp: T, ki: T, kd: T) -> Self {
+    pub const fn new(gains: PidGains<T>) -> Self {
         Self {
-            gains: PidGains::new(kp, ki, kd),
-            ki_saved: ki,
-            measurement_previous: T::default(),
-            setpoint: T::default(),
-            setpoint_previous: T::default(),
-            setpoint_derivative: T::default(),
-            error_derivative: T::default(),
-            error_integral: T::default(),
-            error_previous: T::default(),
-            limits: PidLimits::default(),
+            gains,
+            ki_saved: gains.ki,
+            measurement_previous: T::ZERO,
+            setpoint: T::ZERO,
+            setpoint_previous: T::ZERO,
+            setpoint_derivative: T::ZERO,
+            error_derivative: T::ZERO,
+            error_integral: T::ZERO,
+            error_previous: T::ZERO,
+            limits: PidLimits::new(),
         }
     }
 }
@@ -143,9 +192,9 @@ where
 {
     /// PID update.
     /// ```
-    /// # use pidsk_controller::{Pidf32,PidController};
+    /// # use pidsk_controller::{Pidf32,PidController,PidGainsf32};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = Pidf32::new(0.1, 0.0, 0.0);
+    /// let mut pid = Pidf32::new(PidGainsf32 { kp:0.1, ki:0.0, kd:0.0, ks:0.0, kk:0.0 });
     ///
     /// pid.set_setpoint(8.7);
     ///
@@ -162,10 +211,10 @@ where
     /// This allows the user to filter `measurement_delta` with a filter of their choice.
     ///
     /// ```
-    /// # use pidsk_controller::{Pidf32,PidController};
+    /// # use pidsk_controller::{Pidf32,PidController,PidGainsf32};
     /// # use signal_filters::{Pt1Filterf32,SignalFilter};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = Pidf32::new(0.1, 0.0, 0.01);
+    /// let mut pid = Pidf32::new(PidGainsf32 { kp:0.1, ki:0.0, kd:0.01, ks:0.0, kk:0.0 });
     /// let mut filter = Pt1Filterf32::new(1.0);
     ///
     /// pid.set_setpoint(2.1);
@@ -356,7 +405,7 @@ where
     }
 
     /// Return the set value of ki, whether integration is turned on or not.
-    pub fn pid_constants(&self) -> PidGains<T> {
+    pub fn pid_gains(&self) -> PidGains<T> {
         PidGains {
             kp: self.gains.kp,
             ki: self.ki_saved,

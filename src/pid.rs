@@ -11,12 +11,13 @@ pub trait PidController<T> {
     fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T;
 }
 
+#[allow(clippy::doc_paragraphs_missing_punctuation)]
 /// Trait to allow `PidController` to be used with method-call syntax, ie:<br>
-/// `let output = measurement.adjust_using(&mut pid_controller, dt)`.
+/// `let output = measurement.adjust_using(&mut pid_controller, dt)`
 /// ```
-/// # use pidsk_controller::Pidf32;
+/// # use pidsk_controller::{Pidf32,PidGainsf32};
 /// # use pidsk_controller::UpdatePidController;
-/// # let mut pid_controller = Pidf32::new(0.1, 0.1, 0.01);
+/// # let mut pid_controller = Pidf32::new(PidGainsf32 { kp:0.1, ki:0.1, kd:0.01, ks: 0.0, kk: 0.0 });
 /// # let dt = 0.001_f32;
 /// let measurement: f32 = 9.2;
 /// let output = measurement.adjust_using(&mut pid_controller, dt);

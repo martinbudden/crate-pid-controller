@@ -7,8 +7,6 @@
         "bytemuck",
         "clippy",
         "codegen",
-        "Constantsf",
-        "Controllerf",
         "debuginfo",
         "Dterm",
         "eabihf",
