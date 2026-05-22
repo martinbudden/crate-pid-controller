@@ -9,6 +9,7 @@
         "byteorder",
         "clippy",
         "codegen",
+        "Controllerf",
         "debuginfo",
         "Dterm",
         "eabihf",

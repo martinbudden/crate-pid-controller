@@ -1,8 +1,9 @@
 use num_traits::{ConstOne, ConstZero, Float};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// `Pid` using `f32` values.
-pub type Pidf32 = Pid<f32>;
+pub type PidControllerf32 = PidController<f32>;
 /// `PidGains` using `f32` values.
 pub type PidGainsf32 = PidGains<f32>;
 /// `PidError` using `f32` values.
@@ -11,25 +12,13 @@ pub type PidErrorf32 = PidErrors<f32>;
 pub type PidLimitsf32 = PidLimits<f32>;
 
 /// `Pid` using `f64` values.
-pub type Pidf64 = Pid<f64>;
+pub type PidControllerf64 = PidController<f64>;
 /// `PidGains` using `f64` values.
 pub type PidGainsf64 = PidGains<f64>;
 /// `PidError` using `f64` values.
 pub type PidErrorf64 = PidErrors<f64>;
 /// `PidLimits` using `f32` values.
 pub type PidLimitsf64 = PidLimits<f64>;
-
-/// PID controller function-call trait.<br>
-/// Declares the various forms of the `update` functions.<br><br>
-///
-pub trait PidController<T> {
-    fn update(&mut self, measurement: T, delta_t: T) -> T;
-    fn update_delta(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T;
-    fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, delta_t: T) -> T;
-    fn update_sp(&mut self, measurement: T) -> T;
-    fn update_spd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T;
-    fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T;
-}
 
 /// PID controller with open loop control (generic form).<br>
 /// `Pidf32` and `Pidf64` aliases are available.<br>
@@ -39,8 +28,9 @@ pub trait PidController<T> {
 /// Uses "independent PID" notation, where the gains are denoted as kp, ki, kd etc.<br>
 /// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
 ///
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
-pub struct Pid<T> {
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PidController<T> {
     gains: PidGains<T>,
     limits: PidLimits<T>,
     /// saved value of pid.ki, so integration can be switched on and off.
@@ -58,22 +48,23 @@ pub struct Pid<T> {
 
 /// Default `Pid`.
 /// ```
-/// # use pidsk_controller::Pidf32;
+/// # use pidsk_controller::PidControllerf32;
 /// # use num_traits::Zero;
 ///
-/// let pid = Pidf32::default();
+/// let pid = PidControllerf32::default();
 ///
 /// assert_eq!(1.0, pid.gains().kp);
 /// ```
-impl<T: Float + ConstZero + ConstOne> Default for Pid<T> {
+impl<T: Float + ConstZero + ConstOne> Default for PidController<T> {
     fn default() -> Self {
-        Self::new(PidGains::new(T::ONE, T::ZERO, T::ZERO, T::ZERO, T::ZERO))
+        Self::new(T::ONE)
     }
 }
 
 // Constructors
-impl<T: Float + ConstZero + ConstOne> Pid<T> {
-    pub const fn with_limits(gains: PidGains<T>, limits: PidLimits<T>) -> Self {
+impl<T: Float + ConstZero + ConstOne> PidController<T> {
+    /// Create a PID controller with the given gains and limits.
+    pub const fn with_gains_and_limits(gains: PidGains<T>, limits: PidLimits<T>) -> Self {
         Self {
             gains,
             limits,
@@ -88,17 +79,23 @@ impl<T: Float + ConstZero + ConstOne> Pid<T> {
         }
     }
 
-    pub const fn new(gains: PidGains<T>) -> Self {
-        Self::with_limits(gains, PidLimits::new())
+    /// Create a PID controller with the given gains.
+    pub const fn with_gains(gains: PidGains<T>) -> Self {
+        Self::with_gains_and_limits(gains, PidLimits::new())
+    }
+
+    /// Create a PID controller with given value of `kp` and all other gains set to zero.
+    pub const fn new(kp: T) -> Self {
+        Self::with_gains_and_limits(PidGains::new(kp, T::ZERO, T::ZERO, T::ZERO, T::ZERO), PidLimits::new())
     }
 }
 
-impl<T: Float> PidController<T> for Pid<T> {
+impl<T: Float> PidController<T> {
     /// PID update.
     /// ```
-    /// # use pidsk_controller::{Pidf32,PidController,PidGainsf32};
+    /// # use pidsk_controller::{PidControllerf32};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = Pidf32::new(PidGainsf32 { kp:0.1, ki:0.0, kd:0.0, ks:0.0, kk:0.0 });
+    /// let mut pid = PidControllerf32::new(0.1);
     ///
     /// pid.set_setpoint(8.7);
     ///
@@ -107,7 +104,7 @@ impl<T: Float> PidController<T> for Pid<T> {
     ///
     /// assert_eq!(-0.05, output);
     /// ```
-    fn update(&mut self, measurement: T, delta_t: T) -> T {
+    pub fn update(&mut self, measurement: T, delta_t: T) -> T {
         self.update_delta(measurement, measurement - self.measurement_previous, delta_t)
     }
 
@@ -115,10 +112,10 @@ impl<T: Float> PidController<T> for Pid<T> {
     /// This allows the user to filter `measurement_delta` with a filter of their choice.
     ///
     /// ```
-    /// # use pidsk_controller::{Pidf32,PidController,PidGainsf32};
+    /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
     /// # use signal_filters::{Pt1Filterf32,SignalFilter};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = Pidf32::new(PidGainsf32 { kp:0.1, ki:0.0, kd:0.01, ks:0.0, kk:0.0 });
+    /// let mut pid = PidControllerf32::with_gains(PidGainsf32 { kp:0.1, ki:0.0, kd:0.01, ks:0.0, kk:0.0 });
     /// let mut filter = Pt1Filterf32::with_k(1.0);
     ///
     /// pid.set_setpoint(2.1);
@@ -131,11 +128,16 @@ impl<T: Float> PidController<T> for Pid<T> {
     ///
     /// assert_eq!(-0.010_000_005, output);
     ///
-    fn update_delta(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
+    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
         self.update_delta_iterm(measurement, measurement_delta, self.setpoint - measurement, delta_t)
     }
 
-    fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, delta_t: T) -> T {
+    /// PID update with `measurement_delta` and `iterm_error` specified.
+    /// This allows the user to:
+    /// 1. filter `measurement_delta` with a filter of their choice.
+    /// 2. dynamically alter the Iterm.
+    ///
+    pub fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, delta_t: T) -> T {
         debug_assert!(delta_t != T::zero());
 
         self.measurement_previous = measurement;
@@ -179,7 +181,8 @@ impl<T: Float> PidController<T> for Pid<T> {
         partial_sum + self.error_integral
     }
 
-    fn update_sp(&mut self, measurement: T) -> T {
+    /// Optimized form of `update` that assumes all gains except `ks` and `kp` are zero.
+    pub fn update_sp(&mut self, measurement: T) -> T {
         self.measurement_previous = measurement;
         self.error = self.setpoint - measurement;
 
@@ -188,7 +191,8 @@ impl<T: Float> PidController<T> for Pid<T> {
         self.gains.kp * self.error + self.gains.ks * self.setpoint
     }
 
-    fn update_spd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
+    /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `kd` are zero.
+    pub fn update_spd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
         debug_assert!(delta_t != T::zero());
 
         self.measurement_previous = measurement;
@@ -201,13 +205,12 @@ impl<T: Float> PidController<T> for Pid<T> {
         self.gains.kp * self.error + self.gains.kd * self.error_derivative + self.gains.ks * self.setpoint
     }
 
-    fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
+    /// Optimized form of `update` that assumes that `ki` is zero.
+    pub fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
         self.update_spd(measurement, measurement_delta, delta_t) + self.gains.kk * self.setpoint_derivative
     }
-}
 
-impl<T: Float> Pid<T> {
-    /// Partial PID sum, excludes `Iterm`,
+    /// Partial PID sum helper function, excludes `Iterm`,
     /// has additional S setpoint(openloop) and K kick(setpoint derivative) terms.
     #[inline]
     pub fn partial_sum(&self) -> T {
@@ -217,6 +220,7 @@ impl<T: Float> Pid<T> {
             + self.gains.kk * self.setpoint_derivative
     }
 
+    /// Set the setpoint, saving the previous setpoint.
     pub fn set_setpoint(&mut self, setpoint: T) {
         self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
@@ -226,6 +230,7 @@ impl<T: Float> Pid<T> {
         self.setpoint_derivative = setpoint_derivative;
     }
 
+    /// Set the setpoint and calculate the setpoint derivative.
     pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, delta_t: T) {
         debug_assert!(delta_t != T::zero());
         self.setpoint_previous = self.setpoint;
@@ -233,33 +238,39 @@ impl<T: Float> Pid<T> {
         self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / delta_t;
     }
 
+    /// Return the setpoint.
     pub fn setpoint(&self) -> T {
         self.setpoint
     }
 
+    /// Returns the previous setpoint.
     pub fn previous_setpoint(&self) -> T {
         self.setpoint_previous
     }
 
+    /// Returns the difference between the setpoint and the previous setpoint.
     pub fn setpoint_delta(&self) -> T {
         self.setpoint - self.setpoint_previous
     }
 
-    /// previous measurement, useful for `Dterm` filtering.
+    /// Returns the previous measurement, useful for `Dterm` filtering.
     pub fn previous_measurement(&self) -> T {
         self.measurement_previous
     }
 
+    /// Reset the PID integral to zero.
     pub fn reset_integral(&mut self) {
         self.error_integral = T::zero();
     }
 
+    /// Switch PID integration off by saving `ki` and then setting `ki` to zero.
     pub fn switch_integration_off(&mut self) {
         self.ki_saved = self.gains.ki;
         self.gains.ki = T::zero();
         self.error_integral = T::zero();
     }
 
+    /// Switch PID integration back on, restoring the previously saved value of `ki`.
     pub fn switch_integration_on(&mut self) {
         self.gains.ki = self.ki_saved;
         self.error_integral = T::zero();
@@ -306,7 +317,8 @@ impl<T: Float> Pid<T> {
 /// Uses "independent PID" notation, where the gains are denoted as kp, ki, kd etc.<br>
 /// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
 ///
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PidGains<T> {
     /// proportional gain.
     pub kp: T,
@@ -332,7 +344,7 @@ impl<T: Float> PidGains<T> {
     }
 }
 
-impl<T: Float> Pid<T> {
+impl<T: Float> PidController<T> {
     /// Return the pid gains. The set value of ki is returned, whether integration is turned on or not.
     pub fn gains(&self) -> PidGains<T> {
         PidGains {
@@ -344,6 +356,7 @@ impl<T: Float> Pid<T> {
         }
     }
 
+    /// Set the PID gains, setting `error_integral` to zero if `ki` is zero.
     pub fn set_gains(&mut self, gains: PidGains<T>) {
         self.gains = gains;
         self.ki_saved = self.gains.ki;
@@ -355,7 +368,7 @@ impl<T: Float> Pid<T> {
     }
 }
 
-impl<T: Float + Default> From<PidGains<T>> for Pid<T> {
+impl<T: Float + Default> From<PidGains<T>> for PidController<T> {
     fn from(pid: PidGains<T>) -> Self {
         Self {
             gains: PidGains {
@@ -384,13 +397,14 @@ impl<T: Float + Default> From<PidGains<T>> for Pid<T> {
 
 /// Pid integral anti-windup parameters.<br>
 ///
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PidLimits<T> {
     /// Integral windup limit for positive integral.
     pub integral_max: Option<T>,
     /// Integral windup limit for negative integral.
     pub integral_min: Option<T>,
-    /// For integral windup control.
+    /// Output saturation value, for integral windup control.
     pub output_saturation_value: Option<T>,
 }
 
@@ -411,7 +425,7 @@ impl<T: Float + ConstZero> PidLimits<T> {
     }
 }
 
-impl<T: Float> Pid<T> {
+impl<T: Float> PidController<T> {
     pub fn limits(&self) -> PidLimits<T> {
         self.limits
     }
@@ -440,7 +454,8 @@ impl<T: Float> Pid<T> {
 
 /// P, I, D, S, and K errors as calculated by PID controller.<br><br>
 ///
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PidErrors<T> {
     pub p: T,
     pub i: T,
@@ -462,8 +477,9 @@ impl<T: Float> PidErrors<T> {
     }
 }
 
-impl<T: Float> Pid<T> {
-    // accessor functions to obtain error values
+/// Accessor functions to obtain error values.
+impl<T: Float> PidController<T> {
+    /// Returns the PID errors, multiplied by the PID gains.
     pub fn error(&self) -> PidErrors<T> {
         PidErrors {
             p: self.error * self.gains.kp,
@@ -474,6 +490,7 @@ impl<T: Float> Pid<T> {
         }
     }
 
+    /// Returns the raw values of the PID errors, ie NOT multiplied by the PID gains.
     pub fn error_raw(&self) -> PidErrors<T> {
         PidErrors {
             p: self.error,
@@ -488,12 +505,22 @@ impl<T: Float> Pid<T> {
         }
     }
 
-    /// get previous error, for test code.
+    /// Returns the error, for test code.
     pub fn previous_error(&self) -> T {
         self.error
     }
 
-    /// reset all, for test code.
+    /// Clears historical record to allow bumpless transfer.
+    pub fn reset(&mut self) {
+        self.measurement_previous = self.setpoint;
+        self.setpoint_previous = self.setpoint;
+        self.setpoint_derivative = T::zero();
+        self.error = T::zero();
+        self.error_integral = T::zero();
+        self.error_derivative = T::zero();
+    }
+
+    /// Reset all, for test code.
     pub fn reset_all(&mut self) {
         self.measurement_previous = T::zero();
         self.setpoint = T::zero();

@@ -9,12 +9,9 @@
 #![warn(clippy::doc_paragraphs_missing_punctuation)]
 #![allow(clippy::return_self_not_must_use)]
 
-mod pidsk_adjust;
 mod pidsk_controller;
 
-pub use pidsk_adjust::UpdatePidController;
-pub use pidsk_controller::PidController;
-pub use pidsk_controller::{Pid, Pidf32, Pidf64};
+pub use pidsk_controller::{PidController, PidControllerf32, PidControllerf64};
 pub use pidsk_controller::{PidErrorf32, PidErrorf64, PidErrors};
 pub use pidsk_controller::{PidGains, PidGainsf32, PidGainsf64};
 pub use pidsk_controller::{PidLimits, PidLimitsf32, PidLimitsf64};

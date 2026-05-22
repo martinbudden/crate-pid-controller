@@ -15,7 +15,15 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
+- Main struct is now `PidController`, not `Pid` after removal of `PidController` trait.
+- made `serde` an optional feature.
+- improved documentation.
+- `PidController` `new` function now takes single parameter: `kp`.
+
 ### Removed
+
+- `PidController` and `UpdatePidController` traits.
+- `katex-header.html`
 
 ### Deprecated
 

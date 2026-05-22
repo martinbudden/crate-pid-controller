@@ -13,26 +13,34 @@ categories = [
     "mathematics",
     "no-std",
     "science::robotics",
+    "aerospace::drones",
 ]
 
-[features]
-default = ["libm"]
-libm = ["num-traits/libm"]
-
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", "katex-header.html"]
+all-features = true
 
 [build-dependencies]
 rustc_version = "0.4.1"
 
+[features]
+default = ["libm"]
+#default = ["libm", "serde"]
+#default = ["std"]
+std = ["num-traits/std"]
+libm = ["dep:libm", "num-traits/libm"]
+serde = ["dep:serde", "postcard"]
+
 [dependencies]
+libm = { version = "0.2.16", optional = true } 
+serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
+postcard = { version = "1.1.3", default-features = false, features = ["embedded-io"], optional = true }
 num-traits = { version = "0.2.19", default-features = false }
-serde = { version = "1.0.228", default-features = false, features = ["derive"] }
-postcard = { version = "1.1.3", features = ["embedded-io"] }
 
 [dev-dependencies]
 approx = { version = "0.5.1", default-features = false }
-signal-filters = "0.1.4"
+#signal-filters = "0.1.5"
+#signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
+signal-filters = { path = "../signal-filters" }
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]
