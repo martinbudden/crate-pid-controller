@@ -31,13 +31,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Security
 
-## [0.1.6] - 2026-05-23
-
-### Changed
-
-- Updated to signal-filters 0.1.6.
-
-## [0.1.5] - 2026-05-16
+## [0.1.5] - 2026-05-23
 
 ### Added
 
@@ -45,6 +39,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
+- Updated to signal-filters 0.1.6.
 - Made limits `Option` type.
 - Improved anti-windup handling.
 - Constructors changed to `new(gains)` and `with_limits(gains, limits)`.
