@@ -1,6 +1,9 @@
-use num_traits::{ConstOne, ConstZero, Float};
+use num_traits::{ConstOne, ConstZero, float::FloatCore};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use {
+    sequential_storage::map::PostcardValue,
+    serde::{Deserialize, Serialize},
+};
 
 /// `Pid` using `f32` values.
 pub type PidControllerf32 = PidController<f32>;
@@ -46,6 +49,9 @@ pub struct PidController<T> {
     error_derivative: T,
 }
 
+#[cfg(feature = "serde")]
+impl<T> PostcardValue<'_> for PidController<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+
 /// Default `Pid`.
 /// ```
 /// # use pidsk_controller::PidControllerf32;
@@ -55,14 +61,14 @@ pub struct PidController<T> {
 ///
 /// assert_eq!(1.0, pid.gains().kp);
 /// ```
-impl<T: Float + ConstZero + ConstOne> Default for PidController<T> {
+impl<T: FloatCore + ConstZero + ConstOne> Default for PidController<T> {
     fn default() -> Self {
         Self::new(T::ONE)
     }
 }
 
 // Constructors
-impl<T: Float + ConstZero + ConstOne> PidController<T> {
+impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
     /// Create a PID controller with the given gains and limits.
     pub const fn with_gains_and_limits(gains: PidGains<T>, limits: PidLimits<T>) -> Self {
         Self {
@@ -90,7 +96,7 @@ impl<T: Float + ConstZero + ConstOne> PidController<T> {
     }
 }
 
-impl<T: Float> PidController<T> {
+impl<T: FloatCore> PidController<T> {
     /// PID update.
     /// ```
     /// # use pidsk_controller::{PidControllerf32};
@@ -104,6 +110,7 @@ impl<T: Float> PidController<T> {
     ///
     /// assert_eq!(-0.05, output);
     /// ```
+    #[inline]
     pub fn update(&mut self, measurement: T, delta_t: T) -> T {
         self.update_delta(measurement, measurement - self.measurement_previous, delta_t)
     }
@@ -168,12 +175,8 @@ impl<T: Float> PidController<T> {
             let max_allowed_integral = output_saturation_value - partial_sum;
             let min_allowed_integral = -output_saturation_value - partial_sum;
 
-            // Clamp the accumulator within the calculated dynamic window
-            if self.error_integral > max_allowed_integral {
-                self.error_integral = max_allowed_integral;
-            } else if self.error_integral < min_allowed_integral {
-                self.error_integral = min_allowed_integral;
-            }
+            // Clamp the accumulator within the calculated window
+            self.error_integral = self.error_integral.clamp(min_allowed_integral, max_allowed_integral);
         }
 
         // The PID calculation with additional S setpoint(openloop) and K kick(setpoint derivative) terms
@@ -181,7 +184,19 @@ impl<T: Float> PidController<T> {
         partial_sum + self.error_integral
     }
 
+    /// Optimized form of `update` that assumes all gains except `kp` are zero.
+    #[inline]
+    pub fn update_p(&mut self, measurement: T) -> T {
+        self.measurement_previous = measurement;
+        self.error = self.setpoint - measurement;
+
+        // The P (no I, no D) term
+        //         P
+        self.gains.kp * self.error
+    }
+
     /// Optimized form of `update` that assumes all gains except `ks` and `kp` are zero.
+    #[inline]
     pub fn update_sp(&mut self, measurement: T) -> T {
         self.measurement_previous = measurement;
         self.error = self.setpoint - measurement;
@@ -206,6 +221,7 @@ impl<T: Float> PidController<T> {
     }
 
     /// Optimized form of `update` that assumes that `ki` is zero.
+    #[inline]
     pub fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
         self.update_spd(measurement, measurement_delta, delta_t) + self.gains.kk * self.setpoint_derivative
     }
@@ -332,19 +348,22 @@ pub struct PidGains<T> {
     pub kk: T,
 }
 
-impl<T: Float> Default for PidGains<T> {
+#[cfg(feature = "serde")]
+impl<T> PostcardValue<'_> for PidGains<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+
+impl<T: FloatCore> Default for PidGains<T> {
     fn default() -> Self {
         Self::new(T::one(), T::zero(), T::zero(), T::zero(), T::zero())
     }
 }
 
-impl<T: Float> PidGains<T> {
+impl<T: FloatCore> PidGains<T> {
     pub const fn new(kp: T, ki: T, kd: T, ks: T, kk: T) -> Self {
         Self { kp, ki, kd, ks, kk }
     }
 }
 
-impl<T: Float> PidController<T> {
+impl<T: FloatCore> PidController<T> {
     /// Return the pid gains. The set value of ki is returned, whether integration is turned on or not.
     pub fn gains(&self) -> PidGains<T> {
         PidGains {
@@ -368,7 +387,7 @@ impl<T: Float> PidController<T> {
     }
 }
 
-impl<T: Float + Default> From<PidGains<T>> for PidController<T> {
+impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
     fn from(pid: PidGains<T>) -> Self {
         Self {
             gains: PidGains {
@@ -396,7 +415,6 @@ impl<T: Float + Default> From<PidGains<T>> for PidController<T> {
 }
 
 /// Pid integral anti-windup parameters.<br>
-///
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PidLimits<T> {
@@ -408,13 +426,16 @@ pub struct PidLimits<T> {
     pub output_saturation_value: Option<T>,
 }
 
-impl<T: Float + ConstZero> Default for PidLimits<T> {
+#[cfg(feature = "serde")]
+impl<T> PostcardValue<'_> for PidLimits<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+
+impl<T: FloatCore + ConstZero> Default for PidLimits<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Float + ConstZero> PidLimits<T> {
+impl<T: FloatCore + ConstZero> PidLimits<T> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -425,7 +446,7 @@ impl<T: Float + ConstZero> PidLimits<T> {
     }
 }
 
-impl<T: Float> PidController<T> {
+impl<T: FloatCore> PidController<T> {
     pub fn limits(&self) -> PidLimits<T> {
         self.limits
     }
@@ -453,7 +474,6 @@ impl<T: Float> PidController<T> {
 }
 
 /// P, I, D, S, and K errors as calculated by PID controller.<br><br>
-///
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PidErrors<T> {
@@ -464,13 +484,16 @@ pub struct PidErrors<T> {
     pub k: T,
 }
 
-impl<T: Float> Default for PidErrors<T> {
+#[cfg(feature = "serde")]
+impl<T> PostcardValue<'_> for PidErrors<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+
+impl<T: FloatCore> Default for PidErrors<T> {
     fn default() -> Self {
         Self::new(T::zero(), T::zero(), T::zero(), T::zero(), T::zero())
     }
 }
 
-impl<T: Float> PidErrors<T> {
+impl<T: FloatCore> PidErrors<T> {
     #[allow(clippy::many_single_char_names)]
     pub const fn new(p: T, i: T, d: T, s: T, k: T) -> Self {
         Self { p, i, d, s, k }
@@ -478,7 +501,7 @@ impl<T: Float> PidErrors<T> {
 }
 
 /// Accessor functions to obtain error values.
-impl<T: Float> PidController<T> {
+impl<T: FloatCore> PidController<T> {
     /// Returns the PID errors, multiplied by the PID gains.
     pub fn error(&self) -> PidErrors<T> {
         PidErrors {

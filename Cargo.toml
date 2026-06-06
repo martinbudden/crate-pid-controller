@@ -23,24 +23,19 @@ all-features = true
 rustc_version = "0.4.1"
 
 [features]
-default = ["libm"]
-#default = ["libm", "serde"]
-#default = ["std"]
-std = ["num-traits/std"]
-libm = ["dep:libm", "num-traits/libm"]
-serde = ["dep:serde", "postcard"]
+#default =[]
+default = ["serde"]
+serde = ["dep:serde", "postcard", "sequential-storage"]
 
 [dependencies]
-libm = { version = "0.2.16", optional = true } 
+num-traits = { version = "0.2.19", default-features = false }
 serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
 postcard = { version = "1.1.3", default-features = false, features = ["embedded-io"], optional = true }
-num-traits = { version = "0.2.19", default-features = false }
+sequential-storage = { version = "7.2.0", features = ["postcard"], optional = true }
 
 [dev-dependencies]
 approx = { version = "0.5.1", default-features = false }
-signal-filters = "0.1.6"
-#signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
-#signal-filters = { path = "../signal-filters" }
+signal-filters = "0.1.8"
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]

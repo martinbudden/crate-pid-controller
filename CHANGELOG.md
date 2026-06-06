@@ -31,6 +31,14 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Security
 
+## [0.1.6] - 2026-06-06
+
+### Changed
+
+- Updated to signal-filters 0.1.8.
+- Use `FloatCore` rather than `Float` trait.
+- Improved serialization.
+
 ## [0.1.5] - 2026-05-23
 
 ### Added

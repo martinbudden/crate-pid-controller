@@ -22,7 +22,7 @@ The PID controller has the following features:
     2. Additional update function `update_delta_iterm`, with a `iterm_error` parameter. This allows the user to calculate the I-term
        error. This can be used, for example, to implement Iterm relaxation.
     3. Functions to return the current error terms. (These can also be used for PID tuning, telemetry, and test)
-7. Optimized forms of the `update` function, `update_sp`, `update_spi`, and `update_spd` that avoid unnecessary calculations
+7. Optimized forms of the `update` function, `update-p`, `update_sp`, `update_spi`, and `update_spd` that avoid unnecessary calculations
    for a P-controller, a PI-controller, and a PD-controller. These can be used when performance is critical (ie when very
    short loop times are used).
 
