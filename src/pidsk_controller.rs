@@ -50,7 +50,7 @@ pub struct PidController<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidController<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + for<'de> Deserialize<'de> {}
 
 /// Default `Pid`.
 /// ```
@@ -242,6 +242,7 @@ impl<T: FloatCore> PidController<T> {
         self.setpoint = setpoint;
     }
 
+    /// Directly set the setpoint derivative.
     pub fn set_setpoint_derivative(&mut self, setpoint_derivative: T) {
         self.setpoint_derivative = setpoint_derivative;
     }
@@ -349,7 +350,7 @@ pub struct PidGains<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidGains<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidGains<T> where T: Serialize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore> Default for PidGains<T> {
     fn default() -> Self {
@@ -358,6 +359,7 @@ impl<T: FloatCore> Default for PidGains<T> {
 }
 
 impl<T: FloatCore> PidGains<T> {
+    /// Constructor.
     pub const fn new(kp: T, ki: T, kd: T, ks: T, kk: T) -> Self {
         Self { kp, ki, kd, ks, kk }
     }
@@ -427,7 +429,7 @@ pub struct PidLimits<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidLimits<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidLimits<T> where T: Serialize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore + ConstZero> Default for PidLimits<T> {
     fn default() -> Self {
@@ -437,6 +439,7 @@ impl<T: FloatCore + ConstZero> Default for PidLimits<T> {
 
 impl<T: FloatCore + ConstZero> PidLimits<T> {
     #[must_use]
+    /// Constructor.
     pub const fn new() -> Self {
         Self {
             integral_max: None,
@@ -446,6 +449,7 @@ impl<T: FloatCore + ConstZero> PidLimits<T> {
     }
 }
 
+#[allow(missing_docs)]
 impl<T: FloatCore> PidController<T> {
     pub fn limits(&self) -> PidLimits<T> {
         self.limits
@@ -476,6 +480,7 @@ impl<T: FloatCore> PidController<T> {
 /// P, I, D, S, and K errors as calculated by PID controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[allow(missing_docs)]
 pub struct PidErrors<T> {
     pub p: T,
     pub i: T,
@@ -485,7 +490,7 @@ pub struct PidErrors<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidErrors<T> where T: serde::Serialize + for<'de> serde::Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidErrors<T> where T: Serialize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore> Default for PidErrors<T> {
     fn default() -> Self {
@@ -494,6 +499,7 @@ impl<T: FloatCore> Default for PidErrors<T> {
 }
 
 impl<T: FloatCore> PidErrors<T> {
+    /// Constructor.
     #[allow(clippy::many_single_char_names)]
     pub const fn new(p: T, i: T, d: T, s: T, k: T) -> Self {
         Self { p, i, d, s, k }

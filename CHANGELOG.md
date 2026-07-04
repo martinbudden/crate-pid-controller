@@ -31,6 +31,17 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Security
 
+## [0.1.7] - 2026-07-04
+
+### Added
+
+- `deny`s to `lib.rs`.
+
+### Changed
+
+- Updated to signal-filters 0.1.9.
+- Updated documentation.
+
 ## [0.1.6] - 2026-06-08
 
 ### Changed
