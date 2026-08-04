@@ -229,8 +229,9 @@ dependencies = [
 
 [[package]]
 name = "signal-filters"
-version = "0.1.9"
-source = "git+https://github.com/martinbudden/crate-signal-filters#6920dd94b2c0b946055dd536470e7305e5deae63"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6dba5c9059a54860fb0063f335fa01a4688544fd49013399ec1af4513efdebc"
 dependencies = [
  "libm",
  "num-traits",
@@ -292,8 +293,9 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
 name = "vqm"
-version = "0.1.13"
-source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#87a89d710a342d71e8e5c3188b6473f1c5c04c09"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61d4359d462dc797246e2dc959bd78c2db051a051776e20a522a86353a8241b0"
 dependencies = [
  "cfg-if",
  "libm",

@@ -15,21 +15,11 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
-- Main struct is now `PidController`, not `Pid` after removal of `PidController` trait.
-- made `serde` an optional feature.
-- improved documentation.
-- `PidController` `new` function now takes single parameter: `kp`.
+## [0.1.8] - 2026-08-04
 
-### Removed
+### Changed
 
-- `PidController` and `UpdatePidController` traits.
-- `katex-header.html`
-
-### Deprecated
-
-### Fixed
-
-### Security
+- Updated to signal-filters 0.1.10.
 
 ## [0.1.7] - 2026-07-04
 
@@ -50,6 +40,15 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 - Use `FloatCore` rather than `Float` trait.
 - Improved serialization.
 - Default does not use `serde`.
+- Main struct is now `PidController`, not `Pid` after removal of `PidController` trait.
+- made `serde` an optional feature.
+- improved documentation.
+- `PidController` `new` function now takes single parameter: `kp`.
+
+### Removed
+
+- `PidController` and `UpdatePidController` traits.
+- `katex-header.html`
 
 ## [0.1.5] - 2026-05-23
 
@@ -64,7 +63,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 - Improved anti-windup handling.
 - Constructors changed to `new(gains)` and `with_limits(gains, limits)`.
 
-## Removed
+### Removed
 
 - `integral_threshold` from `PidLimits`.
 - `update_spi` function.
