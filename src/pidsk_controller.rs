@@ -1,6 +1,8 @@
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
+
 #[cfg(feature = "serde")]
 use {
+    postcard::experimental::max_size::MaxSize,
     sequential_storage::map::PostcardValue,
     serde::{Deserialize, Serialize},
 };
@@ -32,7 +34,7 @@ pub type PidLimitsf64 = PidLimits<f64>;
 /// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
 ///
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 pub struct PidController<T> {
     gains: PidGains<T>,
     limits: PidLimits<T>,
@@ -50,7 +52,7 @@ pub struct PidController<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + for<'de> Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 /// Default `Pid`.
 /// ```
@@ -335,7 +337,7 @@ impl<T: FloatCore> PidController<T> {
 /// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
 ///
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 pub struct PidGains<T> {
     /// proportional gain.
     pub kp: T,
@@ -350,7 +352,7 @@ pub struct PidGains<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidGains<T> where T: Serialize + for<'de> Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidGains<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore> Default for PidGains<T> {
     fn default() -> Self {
@@ -418,7 +420,7 @@ impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
 
 /// Pid integral anti-windup parameters.<br>
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 pub struct PidLimits<T> {
     /// Integral windup limit for positive integral.
     pub integral_max: Option<T>,
@@ -429,7 +431,7 @@ pub struct PidLimits<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidLimits<T> where T: Serialize + for<'de> Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidLimits<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore + ConstZero> Default for PidLimits<T> {
     fn default() -> Self {
@@ -479,7 +481,7 @@ impl<T: FloatCore> PidController<T> {
 
 /// P, I, D, S, and K errors as calculated by PID controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 #[allow(missing_docs)]
 pub struct PidErrors<T> {
     pub p: T,
@@ -490,7 +492,7 @@ pub struct PidErrors<T> {
 }
 
 #[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidErrors<T> where T: Serialize + for<'de> Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore> Default for PidErrors<T> {
     fn default() -> Self {

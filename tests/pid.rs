@@ -1,25 +1,21 @@
 use pidsk_controller::{PidControllerf32, PidErrorf32, PidGainsf32, PidLimitsf32};
+
+#[cfg(feature = "serde")]
+use {
+    postcard::experimental::max_size::MaxSize,
+    sequential_storage::map::PostcardValue,
+    serde::{Deserialize, Serialize},
+};
+
 #[cfg(test)]
-mod tests {
-    #![allow(clippy::float_cmp)]
-
+mod test_traits {
     use super::*;
-    #[cfg(feature = "serde")]
-    use serde::{Deserialize, Serialize};
-
-    macro_rules! assert_near {
-        ($left:expr, $right:expr) => {
-            approx::assert_abs_diff_eq!($left, $right, epsilon = 4e-6);
-        };
-    }
 
     fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    fn _is_full_eq<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + Eq + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_config<
-        T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq + Serialize + for<'a> Deserialize<'a>,
-    >() {
-    }
+    fn is_config<T: Serialize + MaxSize + for<'a> Deserialize<'a> + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {
@@ -35,6 +31,19 @@ mod tests {
         is_config::<PidErrorf32>();
         #[cfg(feature = "serde")]
         is_config::<PidLimitsf32>();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::float_cmp)]
+
+    use super::*;
+
+    macro_rules! assert_near {
+        ($left:expr, $right:expr) => {
+            approx::assert_abs_diff_eq!($left, $right, epsilon = 4e-6);
+        };
     }
 
     #[test]

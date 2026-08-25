@@ -1,0 +1,3 @@
+[alias]
+# Run using: 'cargo test-serde'
+test-serde = "test --features serde"
