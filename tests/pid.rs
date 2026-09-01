@@ -1,4 +1,4 @@
-use pidsk_controller::{PidControllerf32, PidErrorf32, PidGainsf32, PidLimitsf32};
+use pidsk_controller::{PidControllerf32, PidErrorsf32, PidGainsf32, PidLimitsf32};
 
 #[cfg(feature = "serde")]
 use {
@@ -21,14 +21,14 @@ mod test_traits {
     fn normal_types() {
         is_full::<PidControllerf32>();
         is_full::<PidGainsf32>();
-        is_full::<PidErrorf32>();
+        is_full::<PidErrorsf32>();
         is_full::<PidLimitsf32>();
         #[cfg(feature = "serde")]
         is_config::<PidControllerf32>();
         #[cfg(feature = "serde")]
         is_config::<PidGainsf32>();
         #[cfg(feature = "serde")]
-        is_config::<PidErrorf32>();
+        is_config::<PidErrorsf32>();
         #[cfg(feature = "serde")]
         is_config::<PidLimitsf32>();
     }
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_pid_init() {
-        let pid = PidControllerf32::new(1.0);
+        let pid = PidControllerf32::new();
         let pid_gains = pid.gains();
         assert_eq!(1.0, pid_gains.kp);
         assert_eq!(0.0, pid_gains.ki);
@@ -86,7 +86,7 @@ mod tests {
             ks: 0.0,
             kk: 0.0,
         };
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
         let pid_gains = pid.gains();
 
         assert_eq!(5.0, pid_gains.kp);
@@ -111,7 +111,14 @@ mod tests {
     fn update() {
         let delta_t: f32 = 0.01;
 
-        let mut pid = PidControllerf32::new(0.1);
+        let gains = PidGainsf32 {
+            kp: 0.1,
+            ki: 0.0,
+            kd: 0.0,
+            ks: 0.0,
+            kk: 0.0,
+        };
+        let mut pid = PidControllerf32::new().with_gains(gains);
         pid.set_setpoint(8.7);
 
         let measurement: f32 = 9.2;
@@ -130,7 +137,7 @@ mod tests {
             ks: 0.0,
             kk: 0.0,
         };
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
         let mut filter = Pt1Filterf32::new();
 
         pid.set_setpoint(2.1);
@@ -153,7 +160,7 @@ mod tests {
             ks: 0.0,
             kk: 0.0,
         };
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
         let mut filter = Pt1Filterf32::new();
 
         pid.set_setpoint(2.1);
@@ -174,7 +181,7 @@ mod tests {
     #[test]
     fn test_p_controller() {
         let delta_t: f32 = 1.0;
-        let mut pid = PidControllerf32::new(1.0);
+        let mut pid = PidControllerf32::new();
         let pid_gains = pid.gains();
 
         assert_eq!(1.0, pid_gains.kp);
@@ -247,7 +254,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
 
         assert_eq!(0.3, pid_gains.kp);
         assert_eq!(0.2, pid_gains.ki);
@@ -348,7 +355,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
 
         assert_eq!(0.3, pid_gains.kp);
         assert_eq!(0.2, pid_gains.ki);
@@ -449,7 +456,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
 
         assert_eq!(0.0, pid.setpoint());
 
@@ -554,7 +561,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
         pid.set_integral_limit(2.0);
 
         assert_eq!(0.0, pid.setpoint());
@@ -607,7 +614,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
         pid.set_output_saturation_value(1.5);
 
         assert_eq!(0.0, pid.setpoint());
@@ -693,7 +700,7 @@ mod tests {
             ks: 0.0,
             kk: 0.0,
         };
-        let mut pid = PidControllerf32::with_gains(pid_gains);
+        let mut pid = PidControllerf32::new().with_gains(pid_gains);
         pid.set_output_saturation_value(1.5);
 
         assert_eq!(0.0, pid.setpoint());
@@ -744,7 +751,7 @@ mod tests {
             output_saturation_value: Some(15.0),
         };
 
-        PidControllerf32::with_gains_and_limits(gains, limits)
+        PidControllerf32::new().with_gains(gains).with_limits(limits)
         //Pid::new(gains)
     }
 

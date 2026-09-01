@@ -1,5 +1,7 @@
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
+use crate::{PidGains, PidLimits};
+
 #[cfg(feature = "serde")]
 use {
     postcard::experimental::max_size::MaxSize,
@@ -9,21 +11,9 @@ use {
 
 /// `Pid` using `f32` values.
 pub type PidControllerf32 = PidController<f32>;
-/// `PidGains` using `f32` values.
-pub type PidGainsf32 = PidGains<f32>;
-/// `PidError` using `f32` values.
-pub type PidErrorf32 = PidErrors<f32>;
-/// `PidLimits` using `f32` values.
-pub type PidLimitsf32 = PidLimits<f32>;
 
 /// `Pid` using `f64` values.
 pub type PidControllerf64 = PidController<f64>;
-/// `PidGains` using `f64` values.
-pub type PidGainsf64 = PidGains<f64>;
-/// `PidError` using `f64` values.
-pub type PidErrorf64 = PidErrors<f64>;
-/// `PidLimits` using `f32` values.
-pub type PidLimitsf64 = PidLimits<f64>;
 
 /// PID controller with open loop control (generic form).<br>
 /// `Pidf32` and `Pidf64` aliases are available.<br>
@@ -65,18 +55,19 @@ impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + MaxSize + fo
 /// ```
 impl<T: FloatCore + ConstZero + ConstOne> Default for PidController<T> {
     fn default() -> Self {
-        Self::new(T::ONE)
+        Self::new()
     }
 }
 
 // Constructors
 impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
-    /// Create a PID controller with the given gains and limits.
-    pub const fn with_gains_and_limits(gains: PidGains<T>, limits: PidLimits<T>) -> Self {
+    /// Constructor.
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
-            gains,
-            limits,
-            ki_saved: gains.ki,
+            gains: PidGains::new(),
+            limits: PidLimits::new(),
+            ki_saved: T::ZERO,
             measurement_previous: T::ZERO,
             setpoint: T::ZERO,
             setpoint_previous: T::ZERO,
@@ -86,24 +77,26 @@ impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
             error_derivative: T::ZERO,
         }
     }
-
-    /// Create a PID controller with the given gains.
-    pub const fn with_gains(gains: PidGains<T>) -> Self {
-        Self::with_gains_and_limits(gains, PidLimits::new())
+    /// Set the gains of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_gains(mut self, gains: PidGains<T>) -> Self {
+        self.set_gains(gains);
+        self
     }
-
-    /// Create a PID controller with given value of `kp` and all other gains set to zero.
-    pub const fn new(kp: T) -> Self {
-        Self::with_gains_and_limits(PidGains::new(kp, T::ZERO, T::ZERO, T::ZERO, T::ZERO), PidLimits::new())
+    /// Set the limits of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_limits(mut self, limits: PidLimits<T>) -> Self {
+        self.limits = limits;
+        self
     }
 }
 
 impl<T: FloatCore> PidController<T> {
     /// PID update.
     /// ```
-    /// # use pidsk_controller::{PidControllerf32};
+    /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = PidControllerf32::new(0.1);
+    /// let mut pid = PidControllerf32::new().with_gains(PidGainsf32::new().with_kp(0.1));
     ///
     /// pid.set_setpoint(8.7);
     ///
@@ -124,7 +117,7 @@ impl<T: FloatCore> PidController<T> {
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
     /// # use signal_filters::{Pt1Filterf32,SignalFilter};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = PidControllerf32::with_gains(PidGainsf32 { kp:0.1, ki:0.0, kd:0.01, ks:0.0, kk:0.0 });
+    /// let mut pid = PidControllerf32::new().with_gains(PidGainsf32::new().with_kp(0.1).with_kd(0.01));
     /// let mut filter = Pt1Filterf32::with_k(1.0);
     ///
     /// pid.set_setpoint(2.1);
@@ -328,45 +321,6 @@ impl<T: FloatCore> PidController<T> {
     }
 }
 
-/// Gains for PID controller.
-/// Includes classical PID (`kp`, `ki`, and `kd`) gains and also<br>
-/// setpoint gain (`ks` - classical feed forward) and<br>
-/// setpoint derivative gain (`kk`. kick - called feedforward by Betaflight).<br>
-///
-/// Uses "independent PID" notation, where the gains are denoted as kp, ki, kd etc.<br>
-/// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
-///
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-pub struct PidGains<T> {
-    /// proportional gain.
-    pub kp: T,
-    /// integral gain.
-    pub ki: T,
-    /// derivative gain.
-    pub kd: T,
-    /// setpoint gain.
-    pub ks: T,
-    /// setpoint derivative gain ('kick').
-    pub kk: T,
-}
-
-#[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidGains<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
-
-impl<T: FloatCore> Default for PidGains<T> {
-    fn default() -> Self {
-        Self::new(T::one(), T::zero(), T::zero(), T::zero(), T::zero())
-    }
-}
-
-impl<T: FloatCore> PidGains<T> {
-    /// Constructor.
-    pub const fn new(kp: T, ki: T, kd: T, ks: T, kk: T) -> Self {
-        Self { kp, ki, kd, ks, kk }
-    }
-}
-
 impl<T: FloatCore> PidController<T> {
     /// Return the pid gains. The set value of ki is returned, whether integration is turned on or not.
     pub fn gains(&self) -> PidGains<T> {
@@ -414,39 +368,6 @@ impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
             error_derivative: T::default(),
             error_integral: T::default(),
             error: T::default(),
-        }
-    }
-}
-
-/// Pid integral anti-windup parameters.<br>
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-pub struct PidLimits<T> {
-    /// Integral windup limit for positive integral.
-    pub integral_max: Option<T>,
-    /// Integral windup limit for negative integral.
-    pub integral_min: Option<T>,
-    /// Output saturation value, for integral windup control.
-    pub output_saturation_value: Option<T>,
-}
-
-#[cfg(feature = "serde")]
-impl<T> PostcardValue<'_> for PidLimits<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
-
-impl<T: FloatCore + ConstZero> Default for PidLimits<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T: FloatCore + ConstZero> PidLimits<T> {
-    #[must_use]
-    /// Constructor.
-    pub const fn new() -> Self {
-        Self {
-            integral_max: None,
-            integral_min: None,
-            output_saturation_value: None,
         }
     }
 }

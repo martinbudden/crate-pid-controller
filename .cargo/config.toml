@@ -1,3 +1,7 @@
 [alias]
 # Run using: 'cargo test-serde'
+test-none = [ "check", "--no-default-features"]
 test-serde = "test --features serde"
+
+check-none = [ "check", "--no-default-features"]
+check-serde = [ "check", "--no-default-features", "--features", "serde"]
