@@ -86,7 +86,24 @@ impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
     /// Set the limits of a newly constructed PID controller.
     #[must_use]
     pub fn with_limits(mut self, limits: PidLimits<T>) -> Self {
-        self.limits = limits;
+        self.set_limits(limits);
+        self
+    }
+
+    /// Set the limits of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_integral_limits(mut self, integral_max: T, integral_min: T) -> Self {
+        let limits = PidLimits::new()
+            .with_integral_max(integral_max)
+            .with_integral_min(integral_min);
+        self.set_limits(limits);
+        self
+    }
+    /// Set the output saturation value of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_output_saturation(mut self, output_saturation: T) -> Self {
+        let limits = PidLimits::new().with_output_saturation(output_saturation);
+        self.set_limits(limits);
         self
     }
 }
@@ -165,10 +182,10 @@ impl<T: FloatCore> PidController<T> {
         }
 
         // Dynamic Anti-Windup Clamping based on Output Saturation Limit
-        if let Some(output_saturation_value) = self.limits.output_saturation_value {
+        if let Some(output_saturation) = self.limits.output_saturation {
             // Determine dynamic upper and lower boundaries for the integral term
-            let max_allowed_integral = output_saturation_value - partial_sum;
-            let min_allowed_integral = -output_saturation_value - partial_sum;
+            let max_allowed_integral = output_saturation - partial_sum;
+            let min_allowed_integral = -output_saturation - partial_sum;
 
             // Clamp the accumulator within the calculated window
             self.error_integral = self.error_integral.clamp(min_allowed_integral, max_allowed_integral);
@@ -265,6 +282,10 @@ impl<T: FloatCore> PidController<T> {
         self.setpoint - self.setpoint_previous
     }
 
+    /// Sets the previous measurement.
+    pub fn set_initial_measurement(&mut self, measurement: T) {
+        self.measurement_previous = measurement;
+    }
     /// Returns the previous measurement, useful for `Dterm` filtering.
     pub fn previous_measurement(&self) -> T {
         self.measurement_previous
@@ -306,9 +327,9 @@ impl<T: FloatCore> PidController<T> {
         self.error_integral = old_error_integral + old_partial_sum - new_partial_sum;
 
         // Force-clamp the newly calculated accumulator within the Option bounds
-        if let Some(output_saturation_value) = self.limits.output_saturation_value {
-            let max = output_saturation_value - new_partial_sum;
-            let min = -output_saturation_value - new_partial_sum;
+        if let Some(output_saturation) = self.limits.output_saturation {
+            let max = output_saturation - new_partial_sum;
+            let min = -output_saturation - new_partial_sum;
             self.error_integral = self.error_integral.clamp(min, max);
         }
 
@@ -358,7 +379,7 @@ impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
             limits: PidLimits {
                 integral_max: None,
                 integral_min: None,
-                output_saturation_value: None,
+                output_saturation: None,
             },
             ki_saved: pid.ki,
             measurement_previous: T::default(),
@@ -395,8 +416,8 @@ impl<T: FloatCore> PidController<T> {
         self.limits.integral_min = Some(-integral_limit);
     }
 
-    pub fn set_output_saturation_value(&mut self, output_saturation_value: T) {
-        self.limits.output_saturation_value = Some(output_saturation_value);
+    pub fn set_output_saturation(&mut self, output_saturation: T) {
+        self.limits.output_saturation = Some(output_saturation);
     }
 }
 

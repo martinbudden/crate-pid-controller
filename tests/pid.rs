@@ -38,6 +38,8 @@ mod test_traits {
 mod tests {
     #![allow(clippy::float_cmp)]
 
+    use pidsk_controller::PidGains;
+
     use super::*;
 
     macro_rules! assert_near {
@@ -111,14 +113,7 @@ mod tests {
     fn update() {
         let delta_t: f32 = 0.01;
 
-        let gains = PidGainsf32 {
-            kp: 0.1,
-            ki: 0.0,
-            kd: 0.0,
-            ks: 0.0,
-            kk: 0.0,
-        };
-        let mut pid = PidControllerf32::new().with_gains(gains);
+        let mut pid = PidControllerf32::new().with_gains(PidGainsf32::new().with_kp(0.1));
         pid.set_setpoint(8.7);
 
         let measurement: f32 = 9.2;
@@ -614,8 +609,9 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
-        pid.set_output_saturation_value(1.5);
+        let mut pid = PidControllerf32::new()
+            .with_gains(pid_gains)
+            .with_output_saturation(1.5);
 
         assert_eq!(0.0, pid.setpoint());
 
@@ -693,15 +689,9 @@ mod tests {
     #[test]
     fn test_integral_saturation_negative() {
         let delta_t: f32 = 1.0;
-        let pid_gains = PidGainsf32 {
-            kp: 0.2,
-            ki: 0.3,
-            kd: 0.0,
-            ks: 0.0,
-            kk: 0.0,
-        };
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
-        pid.set_output_saturation_value(1.5);
+        let mut pid = PidControllerf32::new()
+            .with_gains(PidGains::new().with_kp(0.2).with_ki(0.3))
+            .with_output_saturation(1.5);
 
         assert_eq!(0.0, pid.setpoint());
 
@@ -748,7 +738,7 @@ mod tests {
         let limits = PidLimitsf32 {
             integral_max: Some(10.0),
             integral_min: Some(-10.0),
-            output_saturation_value: Some(15.0),
+            output_saturation: Some(15.0),
         };
 
         PidControllerf32::new().with_gains(gains).with_limits(limits)

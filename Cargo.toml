@@ -32,8 +32,8 @@ sequential-storage = { version = "8.0.1", features = ["postcard"], optional = tr
 
 [dev-dependencies]
 approx = { version = "0.5.1", default-features = false }
-#signal-filters = "0.1.10"
-signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
+signal-filters = "0.1.12"
+#signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]

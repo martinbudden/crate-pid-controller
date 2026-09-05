@@ -3,6 +3,8 @@
 This crate contains a [PID controller](https://en.wikipedia.org/wiki/Proportional-integral-derivative_controller) with
 additional [feed forward](https://en.wikipedia.org/wiki/Feed_forward_(control)) and setpoint components.
 
+There are variants for `f32` and `f64`: `PidControllerf32` and `PidControllerf64`.
+
 The PID controller has the following features:
 
 1. Addition of optional feed forward components (ie components base solely on the setpoint).
@@ -35,6 +37,26 @@ The PID controller deliberately does not implement these features:
    Note this value must be negated, ie `update_delta(measurement, -input_delta, delta_t)` should be called.
 3. Filtering of the D-term. Providing a D-term filter limits flexibility - the user no choice in the type of filter used.
    Instead the `update_delta` function can be used, with `measurement_delta` filtered by a filter provided by the user.
+
+## Example
+
+```rust
+use pidsk_controller::{PidControllerf32, PidGainsf32};
+
+let mut pid_controller = PidControllerf32::new()
+    .with_gains(PidGainsf32::new().with_kp(2.0).with_ki(0.1).with_kd(0.5))
+    .with_integral_limits(50.0, -50.0);
+
+let dt = 0.1; // time step in seconds (matches 100ms sleep)
+
+// in a loop
+    // get a measurement from a sensor.
+    let measurement = 0.0;
+
+    let control_signal = pid_controller.update(measurement, dt);
+
+    // use the control_signal to update the thing being controlled.
+```
 
 ## Original implementation
 

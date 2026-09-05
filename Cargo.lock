@@ -236,13 +236,14 @@ checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.4",
+ "syn 3.0.5",
 ]
 
 [[package]]
 name = "signal-filters"
-version = "0.1.10"
-source = "git+https://github.com/martinbudden/crate-signal-filters#321bc238bd5aeed5455cc5470f67aa8707503e05"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88cb17b4022094596d0d29cc0aa228dccb1ac253770fe4cda0125ddc0a0f1c5d"
 dependencies = [
  "libm",
  "num-traits",
@@ -278,9 +279,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "3.0.4"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6275cddf4610d1775e6d1fe9469b2e77d0f39fd98fb7450901b821e0c53649f"
+checksum = "12df2e0110f65b775f769bb17ef989067a1d931b2eb822bd4346631eeada89f9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -304,7 +305,7 @@ checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.4",
+ "syn 3.0.5",
 ]
 
 [[package]]
@@ -315,8 +316,9 @@ checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
 name = "vqm"
-version = "0.1.14"
-source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#593963368b82109b07e0d6a4b8afc8f2c452f0b3"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "feb6e14a7701f0ae3c373e61687ded0042156cab4b7a0a0056bac9f873c51cd3"
 dependencies = [
  "cfg-if",
  "libm",

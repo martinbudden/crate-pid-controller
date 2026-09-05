@@ -9,17 +9,24 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
-## [Unreleased]
+## [0.1.9] - 2026-09-05
 
 ### Added
 
+- example in `examples` directory.
+
 ### Changed
+
+- Updated to `signal-filters` `0.1.12`.
+- Improved constructors to use `with` forms.
+- Updated `README.md`
+- Split `PidErrors`, `PidGains`, and `PidLimits` into separate modules.
 
 ## [0.1.8] - 2026-08-04
 
 ### Changed
 
-- Updated to signal-filters 0.1.10.
+- Updated to `signal-filters` `0.1.10`.
 
 ## [0.1.7] - 2026-07-04
 
@@ -29,14 +36,14 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
-- Updated to signal-filters 0.1.9.
+- Updated to `signal-filters` `0.1.9`.
 - Updated documentation.
 
 ## [0.1.6] - 2026-06-08
 
 ### Changed
 
-- Updated to signal-filters 0.1.8.
+- Updated to `signal-filters` `0.1.8`.
 - Use `FloatCore` rather than `Float` trait.
 - Improved serialization.
 - Default does not use `serde`.
@@ -58,7 +65,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
-- Updated to signal-filters 0.1.6.
+- Updated to `signal-filters` `0.1.6`.
 - Made limits `Option` type.
 - Improved anti-windup handling.
 - Constructors changed to `new(gains)` and `with_limits(gains, limits)`.
@@ -90,14 +97,14 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
-- Updated to signal-filters 0.1.3.
+- Updated to `signal-filters` `0.1.3`.
 
 ## [0.1.1] - 2026-04-26
 
 ### Added
 
 - This changelog.
-- CONTRIBUTING.md
+- `CONTRIBUTING.md`
 
 ## [0.1.0] - 2026-04-12
 

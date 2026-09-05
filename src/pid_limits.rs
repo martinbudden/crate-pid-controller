@@ -21,7 +21,7 @@ pub struct PidLimits<T> {
     /// Integral windup limit for negative integral.
     pub integral_min: Option<T>,
     /// Output saturation value, for integral windup control.
-    pub output_saturation_value: Option<T>,
+    pub output_saturation: Option<T>,
 }
 
 #[cfg(feature = "serde")]
@@ -40,7 +40,7 @@ impl<T: FloatCore + ConstZero> PidLimits<T> {
         Self {
             integral_max: None,
             integral_min: None,
-            output_saturation_value: None,
+            output_saturation: None,
         }
     }
 
@@ -58,10 +58,10 @@ impl<T: FloatCore + ConstZero> PidLimits<T> {
         self
     }
 
-    /// Set the `output_saturation_value` of a newly constructed `PidLimits`.
+    /// Set the `output_saturation` of a newly constructed `PidLimits`.
     #[must_use]
-    pub fn with_output_saturation_value(mut self, output_saturation_value: T) -> Self {
-        self.output_saturation_value = Some(output_saturation_value);
+    pub fn with_output_saturation(mut self, output_saturation: T) -> Self {
+        self.output_saturation = Some(output_saturation);
         self
     }
 }
