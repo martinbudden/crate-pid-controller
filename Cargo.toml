@@ -22,7 +22,8 @@ rustc_version = "0.4.1"
 [features]
 default =[]
 #default = ["serde"]
-serde = ["dep:serde", "postcard", "sequential-storage"]
+serde = ["dep:serde", "postcard"]
+storage = ["dep:sequential-storage", "serde"]
 
 [dependencies]
 num-traits = { version = "0.2.19", default-features = false }

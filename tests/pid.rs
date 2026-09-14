@@ -3,9 +3,10 @@ use pidsk_controller::{PidControllerf32, PidErrorsf32, PidGainsf32, PidLimitsf32
 #[cfg(feature = "serde")]
 use {
     postcard::experimental::max_size::MaxSize,
-    sequential_storage::map::PostcardValue,
     serde::{Deserialize, Serialize},
 };
+#[cfg(feature = "storage")]
+use sequential_storage::map::PostcardValue;
 
 #[cfg(test)]
 mod test_traits {
@@ -15,7 +16,9 @@ mod test_traits {
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     fn _is_full_eq<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + Eq + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_config<T: Serialize + MaxSize + for<'a> Deserialize<'a> + for<'a> PostcardValue<'a>>() {}
+    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    #[cfg(feature = "storage")]
+    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {
@@ -23,14 +26,18 @@ mod test_traits {
         is_full::<PidGainsf32>();
         is_full::<PidErrorsf32>();
         is_full::<PidLimitsf32>();
-        #[cfg(feature = "serde")]
-        is_config::<PidControllerf32>();
-        #[cfg(feature = "serde")]
-        is_config::<PidGainsf32>();
-        #[cfg(feature = "serde")]
-        is_config::<PidErrorsf32>();
-        #[cfg(feature = "serde")]
-        is_config::<PidLimitsf32>();
+        #[cfg(feature = "serde")] {
+        is_serde::<PidControllerf32>();
+        is_serde::<PidGainsf32>();
+        is_serde::<PidErrorsf32>();
+        is_serde::<PidLimitsf32>();
+        }
+        #[cfg(feature = "storage")] {
+        is_storage::<PidControllerf32>();
+        is_storage::<PidGainsf32>();
+        is_storage::<PidErrorsf32>();
+        is_storage::<PidLimitsf32>();
+        }
     }
 }
 

@@ -3,9 +3,10 @@ use num_traits::{ConstZero, float::FloatCore};
 #[cfg(feature = "serde")]
 use {
     postcard::experimental::max_size::MaxSize,
-    sequential_storage::map::PostcardValue,
     serde::{Deserialize, Serialize},
 };
+#[cfg(feature = "storage")]
+use sequential_storage::map::PostcardValue;
 
 /// `PidLimits` using `f32` values.
 pub type PidLimitsf32 = PidLimits<f32>;
@@ -24,7 +25,7 @@ pub struct PidLimits<T> {
     pub output_saturation: Option<T>,
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "storage")]
 impl<T> PostcardValue<'_> for PidLimits<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore + ConstZero> Default for PidLimits<T> {
@@ -70,17 +71,18 @@ impl<T: FloatCore + ConstZero> PidLimits<T> {
 mod test_traits {
     use super::*;
 
-    #[cfg(feature = "serde")]
-    use serde::{Deserialize, Serialize};
-
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_config<T: Serialize + MaxSize + for<'a> Deserialize<'a> + for<'a> PostcardValue<'a>>() {}
+    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    #[cfg(feature = "storage")]
+    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {
         is_full::<PidLimitsf32>();
         #[cfg(feature = "serde")]
-        is_config::<PidLimitsf32>();
+        is_serde::<PidLimitsf32>();
+        #[cfg(feature = "storage")]
+        is_storage::<PidLimitsf32>();
     }
 }

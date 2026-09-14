@@ -5,9 +5,10 @@ use crate::{PidGains, PidLimits};
 #[cfg(feature = "serde")]
 use {
     postcard::experimental::max_size::MaxSize,
-    sequential_storage::map::PostcardValue,
     serde::{Deserialize, Serialize},
 };
+#[cfg(feature = "storage")]
+use sequential_storage::map::PostcardValue;
 
 /// `Pid` using `f32` values.
 pub type PidControllerf32 = PidController<f32>;
@@ -41,7 +42,7 @@ pub struct PidController<T> {
     error_derivative: T,
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "storage")]
 impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 /// Default `Pid`.
@@ -433,7 +434,7 @@ pub struct PidErrors<T> {
     pub k: T,
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "storage")]
 impl<T> PostcardValue<'_> for PidErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 impl<T: FloatCore> Default for PidErrors<T> {
