@@ -325,3 +325,7 @@ dependencies = [
  "num-traits",
  "rustc_version",
 ]
+
+[[package]]
+name = "xtask"
+version = "0.1.0"

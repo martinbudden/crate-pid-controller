@@ -2,9 +2,10 @@
 name = "pidsk-controller"
 version = "0.1.9"
 edition = "2024"
+rust-version = "1.89"
 authors = ["Martin Budden"]
 license = "MIT OR Apache-2.0"
-readme = "README.md"
+#readme = "README.md"
 repository = "https://github.com/martinbudden/crate-pid-controller"
 description = "PID controller with optional feed forward and setpoint kick."
 keywords = ["PID", "feed-forward", "control", "no-std"]
@@ -74,3 +75,8 @@ rpath = false
 inherits = "release"
 lto = true
 
+[workspace]
+members = [
+    ".",
+    "xtask",
+]

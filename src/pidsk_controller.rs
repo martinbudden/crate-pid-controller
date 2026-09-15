@@ -2,13 +2,13 @@ use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
 use crate::{PidGains, PidLimits};
 
+#[cfg(feature = "storage")]
+use sequential_storage::map::PostcardValue;
 #[cfg(feature = "serde")]
 use {
     postcard::experimental::max_size::MaxSize,
     serde::{Deserialize, Serialize},
 };
-#[cfg(feature = "storage")]
-use sequential_storage::map::PostcardValue;
 
 /// `Pid` using `f32` values.
 pub type PidControllerf32 = PidController<f32>;

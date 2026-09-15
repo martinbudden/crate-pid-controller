@@ -1,12 +1,12 @@
 use num_traits::{ConstZero, float::FloatCore};
 
+#[cfg(feature = "storage")]
+use sequential_storage::map::PostcardValue;
 #[cfg(feature = "serde")]
 use {
     postcard::experimental::max_size::MaxSize,
     serde::{Deserialize, Serialize},
 };
-#[cfg(feature = "storage")]
-use sequential_storage::map::PostcardValue;
 
 /// `PidLimits` using `f32` values.
 pub type PidLimitsf32 = PidLimits<f32>;

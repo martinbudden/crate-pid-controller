@@ -7,3 +7,8 @@ test-storage = "test --features storage"
 check-none = [ "check", "--no-default-features"]
 check-serde = [ "check", "--no-default-features", "--features", "serde"]
 check-storage = [ "check", "--no-default-features", "--features", "storage"]
+
+# Continuous Integration
+ci = "run --package xtask --bin xtask"
+# MSRV
+check-msrv = "run --package xtask --bin xtask -- check-msrv"

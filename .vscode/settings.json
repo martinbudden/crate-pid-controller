@@ -13,6 +13,7 @@
         "deadband",
         "debuginfo",
         "Dterm",
+        "dtolnay",
         "eabihf",
         "Errorsf",
         "feedforward",
@@ -24,17 +25,21 @@
         "katex",
         "libm",
         "Limitsf",
+        "msrv",
         "openloop",
         "Pidf",
         "pidgeon",
         "pidsk",
         "rustc",
         "rustdoc",
+        "RUSTDOCFLAGS",
         "scopeguard",
         "serde",
         "skpd",
         "skpi",
+        "swatinem",
         "thiserror",
-        "thumbv"
+        "thumbv",
+        "xtask"
     ]
 }
