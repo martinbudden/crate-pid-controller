@@ -84,6 +84,38 @@ impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
         self.set_gains(gains);
         self
     }
+
+    /// Set the `kp` of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_kp(mut self, kp: T) -> Self {
+        self.gains.kp = kp;
+        self
+    }
+
+    /// Set the `ki` of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_ki(mut self, ki: T) -> Self {
+        self.gains.ki = ki;
+        self
+    }
+    /// Set the `kd` of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_kd(mut self, kd: T) -> Self {
+        self.gains.kd = kd;
+        self
+    }
+    /// Set the `ks` of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_ks(mut self, ks: T) -> Self {
+        self.gains.ks = ks;
+        self
+    }
+    /// Set the `kk` of a newly constructed PID controller.
+    #[must_use]
+    pub fn with_kk(mut self, kk: T) -> Self {
+        self.gains.kk = kk;
+        self
+    }
     /// Set the limits of a newly constructed PID controller.
     #[must_use]
     pub fn with_limits(mut self, limits: PidLimits<T>) -> Self {
@@ -94,17 +126,14 @@ impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
     /// Set the limits of a newly constructed PID controller.
     #[must_use]
     pub fn with_integral_limits(mut self, integral_max: T, integral_min: T) -> Self {
-        let limits = PidLimits::new()
-            .with_integral_max(integral_max)
-            .with_integral_min(integral_min);
-        self.set_limits(limits);
+        self.limits.integral_max = Some(integral_max);
+        self.limits.integral_min = Some(integral_min);
         self
     }
     /// Set the output saturation value of a newly constructed PID controller.
     #[must_use]
     pub fn with_output_saturation(mut self, output_saturation: T) -> Self {
-        let limits = PidLimits::new().with_output_saturation(output_saturation);
-        self.set_limits(limits);
+        self.limits.output_saturation = Some(output_saturation);
         self
     }
 }
@@ -114,7 +143,7 @@ impl<T: FloatCore> PidController<T> {
     /// ```
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = PidControllerf32::new().with_gains(PidGainsf32::new().with_kp(0.1));
+    /// let mut pid = PidControllerf32::new().with_kp(0.1);
     ///
     /// pid.set_setpoint(8.7);
     ///
@@ -135,7 +164,7 @@ impl<T: FloatCore> PidController<T> {
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
     /// # use signal_filters::{Pt1Filterf32,SignalFilter};
     /// let delta_t: f32 = 0.01;
-    /// let mut pid = PidControllerf32::new().with_gains(PidGainsf32::new().with_kp(0.1).with_kd(0.01));
+    /// let mut pid = PidControllerf32::new().with_kp(0.1).with_kd(0.01);
     /// let mut filter = Pt1Filterf32::with_k(1.0);
     ///
     /// pid.set_setpoint(2.1);

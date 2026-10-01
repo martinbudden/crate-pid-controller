@@ -24,6 +24,7 @@ fn run_ci_pipeline() {
         ("check", &["--no-default-features", "--features", "serde"]),
         ("check", &["--no-default-features", "--features", "storage"]),
         ("test", &["--no-default-features"]),
+        ("test", &["--no-default-features", "--features", "serde, storage"]),
         ("doc", &["--no-deps"]),
         ("publish", &["--dry-run"]),
     ];

@@ -1,7 +1,7 @@
 // This example simulates a temperature control system using a PID controller.
 // It is based on the Pidgeon](https://crates.io/crates/pidgeon) example at <https://github.com/security-union/pidgeon/blob/main/crates/pidgeon/examples/debug_temperature_control.rs>
 
-use pidsk_controller::{PidControllerf32, PidGainsf32};
+use pidsk_controller::PidControllerf32;
 use std::{thread::sleep, time::Duration};
 
 fn main() {
@@ -14,7 +14,9 @@ fn main() {
     println!();
 
     let mut pid_controller = PidControllerf32::new()
-        .with_gains(PidGainsf32::new().with_kp(2.0).with_ki(0.1).with_kd(0.05))
+        .with_kp(2.0)
+        .with_ki(0.1)
+        .with_kd(0.05)
         .with_integral_limits(50.0, -50.0);
 
     pid_controller.set_setpoint(TARGET_TEMPERATURE);
