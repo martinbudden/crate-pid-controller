@@ -19,6 +19,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 - split `serde` feature into `serde` and `storage`.
 - updated to Rust version 1.89.
+- Updated to `signal-filters` `0.1.14`.
 
 ## [0.1.9] - 2026-09-05
 
