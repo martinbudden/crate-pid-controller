@@ -162,7 +162,7 @@ use signal_filters::{Pt1Filterf32, UpdateFilter};
 let mut pid_controller = PidControllerf32::new();
 
 // Create a filter for the D-term
-let mut dterm_filter = Pt1Filterf32::with_k(0.9);
+let mut dterm_filter = Pt1Filterf32::new().with_k(0.9);
 
 // 1000 Hz update rate
 let delta_t = 0.001;

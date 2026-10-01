@@ -165,7 +165,7 @@ impl<T: FloatCore> PidController<T> {
     /// # use signal_filters::{Pt1Filterf32,SignalFilter};
     /// let delta_t: f32 = 0.01;
     /// let mut pid = PidControllerf32::new().with_kp(0.1).with_kd(0.01);
-    /// let mut filter = Pt1Filterf32::with_k(1.0);
+    /// let mut filter = Pt1Filterf32::new().with_k(1.0);
     ///
     /// pid.set_setpoint(2.1);
     ///
