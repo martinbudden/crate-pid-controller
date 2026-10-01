@@ -184,22 +184,22 @@ let command = pid_controller.update_delta(
 
 ```text
 
-                     ┌──────────────────────┐
-                     │   pidsk-controller   │
-                     │                      │  command  ┌────────────┐
-Setpoint ───────────►│  P + I + D + S + K   │──────────►│ Controlled │
-(desired value)      │                      │           │   System   │
-                     └──┬─────────┬─────────┘           └─────┬──────┘
-                        ▲         ▲ filtered                  ▼
-                        │         │ measurement delta         │ measurement
-                        │    ┌────┴───┐                       │
-                        │    │ D-term │                       │
-                        │    │ filter │                       │
-                        │    └────▲───┘                       │
-                        │         │ measurement delta         │
-                        │    ┌────┴──────┐                    │
-                        └─── │measurement│────────────────────┘
-                             └───────────┘
+               ┌────────────────────┐
+               │  pidsk-controller  │
+               │                    │  command  ┌────────────┐
+Setpoint ─────►│ P + I + D + S + K  │──────────►│ Controlled │
+(desired       │                    │           │   System   │
+ value)        └──┬─────────┬───────┘           └─────┬──────┘
+                  ▲         ▲ filtered                ▼
+                  │         │ measurement delta       │ measurement
+                  │    ┌────┴───┐                     │
+                  │    │ D-term │                     │
+                  │    │ filter │                     │
+                  │    └────▲───┘                     │
+                  │         │ measurement delta       │
+                  │    ┌────┴──────┐                  │
+                  └─── │measurement│──────────────────┘
+                       └───────────┘
 ```
 
 ## Customizing the I-term
