@@ -9,6 +9,8 @@ including variable loop timing, integral anti-windup, user-controlled derivative
 
 The controller is available for both `f32` and `f64`.
 
+This crate is `no_std`, `no alloc`, and the Minimum Supported Rust Version (MSRV) is `Rust 1.89`.
+
 ## Features
 
 - **P, I, and D control** using independent `kp`, `ki`, and `kd` gains.
