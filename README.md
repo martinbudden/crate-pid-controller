@@ -1,8 +1,4 @@
-# `pidsk-controller`
-
-[![Crates.io](https://img.shields.io/crates/v/pidsk-controller.svg)](https://crates.io/crates/pidsk-controller)
-[![Documentation](https://docs.rs/pidsk-controller/badge.svg)](https://docs.rs/pidsk-controller)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/martinbudden/pidsk-controller)
+# `pidsk-controller` Rust Crate<br>[![Crates.io](https://img.shields.io/crates/v/pidsk-controller.svg)](https://crates.io/crates/pidsk-controller) [![Documentation](https://docs.rs/pidsk-controller/badge.svg)](https://docs.rs/pidsk-controller) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) ![open source](https://badgen.net/badge/open/source/blue?icon=github)
 
 `pidsk-controller` is a PID controller with additional features useful for real-world control applications,
 including: variable loop timing, integral anti-windup, user-controlled derivative filtering, and runtime gain changes.
@@ -16,7 +12,7 @@ This crate is `no_std`, `no alloc`, and the Minimum Supported Rust Version (MSRV
 - **P, I, and D control** using independent `kp`, `ki`, and `kd` gains.
 - **Setpoint feed-forward** (openloop control) using the `ks` gain.
 - **Setpoint derivative kick** using the `kk` gain. Allows *intentional* derivative kick.
-- **Derivative on measurement**, avoids *unintentional* derivative kick when the setpoint changes.
+- **Calculates derivative on measurement**, avoids *unintentional* derivative kick when the setpoint changes.
 - **Variable loop timing** by supplying `dt` to `update()`.
 - **Integral anti-windup** using integral limits, output saturation, or both.
 - **User-controlled D-term filtering** through `update_delta()`.
@@ -36,21 +32,37 @@ The controller calculates its output as:
 output =
     kp * error
   + ki * error_integral
-  + kd * error_derivative
+  - kd * measurement_derivative
   + ks * setpoint
   + kk * setpoint_derivative
 ```
 
+Or, expressed mathematically,:
+
+```math
+C(t) = K_p \cdot e(t) + K_i \cdot \int{e(t)dt} - K_d \cdot \frac{dP(t)}{dt} + K_s \cdot S(t) + K_k \cdot \frac{dS(t)}{dt}
+```
+
+Where:
+
+- C(t) = control output, the output to the actuator.
+- P(t) = process variable, the measured value.
+- e(t) = error = S(t) - P(t)
+- S(t) = set point, the desired target for the process variable.
+
+`kp`/`ki`/`kd`/`ks`/`kk` can be changed during operation and can therefore be a function
+of time.
+
 The first three terms are the conventional PID terms:
 
-- `P` — proportional error
-- `I` — accumulated integral error
-- `D` — derivative of the measured value
+- `P` - proportional error
+- `I` - accumulated integral error
+- `D` - derivative of the measured value
 
 The additional terms are:
 
-- `S` — setpoint (aka open-loop or feed-forward)
-- `K` — setpoint derivative kick
+- `S` - setpoint (aka open-loop or feed-forward)
+- `K` - setpoint derivative (kick)
 
 Setting `ks` and `kk` to zero gives a conventional PID controller.
 
@@ -58,7 +70,8 @@ Setting `kp`, `ki`, `kd`, and `kk` to zero gives pure open-loop control.
 
 The controller uses the **independent PID** notation, where the gains are `kp`, `ki`, and `kd`.
 
-(This differs from the dependent/ISA notation, where the terms `kc`, `tau_i`, and `tau_d` are used).
+(In the dependent/ISA notation, the terms `kc`, `tau_i`, and `tau_d` are used,
+where `kc = kp`, `tau_i = kp / ki` and `tau_d = kd / kp`).
 
 ## Quick start
 
@@ -128,8 +141,8 @@ for example when an actuator has reached its limit, or a heater has reached its 
 
 `pidsk-controller` provides two ways of limiting the integral term:
 
-1. **Integral limits** — constrains the accumulated integral value.
-2. **Output saturation** — prevents integration when the controller output has saturated.
+1. **Integral limits** - constrains the accumulated integral value.
+2. **Output saturation** - prevents integration when the controller output has saturated.
 
 For example:
 
@@ -160,7 +173,7 @@ The Integral Limits and Output Saturation can be used together, if desired.
 Instead, `update_delta()` allows the application to provide its own filter:
 
 ```rust
-use pidsk_controller::{PidControllerf32};
+use pidsk_controller::PidControllerf32;
 use signal_filters::{Pt1Filterf32, UpdateFilter};
 
 let mut pid_controller = PidControllerf32::new();
@@ -189,7 +202,7 @@ let command = pid_controller.update_delta(
 The above code shows the intermediate steps for clarity. It can be written more compactly:
 
 ```rust
-use pidsk_controller::{PidControllerf32};
+use pidsk_controller::PidControllerf32;
 use signal_filters::{Pt1Filterf32, UpdateFilter};
 
 let mut pid_controller = PidControllerf32::new();
@@ -247,7 +260,7 @@ for example during aggressive manuevers by an aircraft.
 Integration can also be switched off and on at runtime:
 
 ```rust
-use pidsk_controller::{PidControllerf32};
+use pidsk_controller::PidControllerf32;
 let mut pid_controller = PidControllerf32::new();
 
 pid_controller.switch_integration_off();
@@ -310,14 +323,14 @@ use `update_sp` for optimized calculation on the Yaw axis.
 **Thermostat**: use `update` for simplicity. Use `ks`, `kp` and `ki` for some openloop control. `kd` and `kk` are set to zero.
 
 **Aircraft altitude hold**: use a Dual-Ring cascaded PID Loop. The outer (altitude) loop is a pure P-controller, so used `update_p`.
-The inner (vertical speed) is a PID-controller, so use `update`.
+The inner (vertical speed) loop is a PID-controller, so use `update`.
 
 ## Inspecting PID terms
 
 The current PID terms can be obtained using:
 
 ```rust
-use pidsk_controller::{PidControllerf32};
+use pidsk_controller::PidControllerf32;
 let mut pid_controller = PidControllerf32::new();
 
 let errors = pid_controller.error();
