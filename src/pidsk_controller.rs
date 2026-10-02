@@ -1,3 +1,4 @@
+use core::ops::AddAssign;
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
 use crate::{PidGains, PidLimits};
@@ -54,14 +55,14 @@ impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + MaxSize + fo
 ///
 /// assert_eq!(1.0, pid.gains().kp);
 /// ```
-impl<T: FloatCore + ConstZero + ConstOne> Default for PidController<T> {
+impl<T: FloatCore + AddAssign + ConstZero + ConstOne> Default for PidController<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
+impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
@@ -138,23 +139,23 @@ impl<T: FloatCore + ConstZero + ConstOne> PidController<T> {
     }
 }
 
-impl<T: FloatCore> PidController<T> {
+impl<T: FloatCore + AddAssign> PidController<T> {
     /// PID update.
     /// ```
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
-    /// let delta_t: f32 = 0.01;
+    /// let dt: f32 = 0.01;
     /// let mut pid = PidControllerf32::new().with_kp(0.1);
     ///
     /// pid.set_setpoint(8.7);
     ///
     /// let measurement:f32 = 9.2;
-    /// let output = pid.update(measurement, delta_t);
+    /// let output = pid.update(measurement, dt);
     ///
     /// assert_eq!(-0.05, output);
     /// ```
     #[inline]
-    pub fn update(&mut self, measurement: T, delta_t: T) -> T {
-        self.update_delta(measurement, measurement - self.measurement_previous, delta_t)
+    pub fn update(&mut self, measurement: T, dt: T) -> T {
+        self.update_delta(measurement, measurement - self.measurement_previous, dt)
     }
 
     /// PID update with `measurement_delta` specified.
@@ -162,23 +163,24 @@ impl<T: FloatCore> PidController<T> {
     ///
     /// ```
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
-    /// # use signal_filters::{Pt1Filterf32,SignalFilter};
-    /// let delta_t: f32 = 0.01;
+    /// # use signal_filters::{Pt1Filterf32, UpdateFilter};
+    /// let dt: f32 = 0.01;
     /// let mut pid = PidControllerf32::new().with_kp(0.1).with_kd(0.01);
-    /// let mut filter = Pt1Filterf32::new().with_k(1.0);
+    /// let mut dterm_filter = Pt1Filterf32::new().with_k(1.0);
     ///
     /// pid.set_setpoint(2.1);
     ///
     /// let measurement:f32 = 0.2;
-    /// let measurement_delta = measurement - pid.previous_measurement();
-    /// let measurement_delta_filtered = filter.update(measurement_delta);
     ///
-    /// let output = pid.update_delta(measurement, measurement_delta_filtered, delta_t);
+    /// let output = pid.update_delta(measurement,
+    ///     (measurement - pid.previous_measurement()).filter_using(&mut dterm_filter),
+    ///     dt,
+    /// );
     ///
     /// assert_eq!(-0.010_000_005, output);
     ///
-    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
-        self.update_delta_iterm(measurement, measurement_delta, self.setpoint - measurement, delta_t)
+    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, dt: T) -> T {
+        self.update_delta_iterm(measurement, measurement_delta, self.setpoint - measurement, dt)
     }
 
     /// PID update with `measurement_delta` and `iterm_error` specified.
@@ -186,32 +188,28 @@ impl<T: FloatCore> PidController<T> {
     /// 1. filter `measurement_delta` with a filter of their choice.
     /// 2. dynamically alter the Iterm.
     ///
-    pub fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, delta_t: T) -> T {
-        debug_assert!(delta_t != T::zero());
+    pub fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, dt: T) -> T {
+        debug_assert!(dt != T::zero());
 
         self.measurement_previous = measurement;
 
         self.error = self.setpoint - measurement;
-        self.error_derivative = -measurement_delta / delta_t; // note minus sign, error delta has reverse polarity to measurement delta
+        self.error_derivative = -measurement_delta / dt; // note minus sign, error delta has reverse polarity to measurement delta
+
+        // Perform Euler integration
+        self.error_integral += self.gains.ki * iterm_error * dt;
+
+        // Anti-windup via integral clamping
+        if let Some(max) = self.limits.integral_max {
+            self.error_integral = self.error_integral.min(max);
+        }
+        if let Some(min) = self.limits.integral_min {
+            self.error_integral = self.error_integral.max(min);
+        }
 
         let partial_sum = self.partial_sum();
 
-        // Perform Euler integration
-        self.error_integral = self.error_integral + self.gains.ki * iterm_error * delta_t;
-
-        // Anti-windup via integral clamping
-        if let Some(max) = self.limits.integral_max
-            && self.error_integral > max
-        {
-            self.error_integral = max;
-        }
-        if let Some(min) = self.limits.integral_min
-            && self.error_integral < min
-        {
-            self.error_integral = min;
-        }
-
-        // Dynamic Anti-Windup Clamping based on Output Saturation Limit
+        // Anti-windup clamping based on output saturation limit
         if let Some(output_saturation) = self.limits.output_saturation {
             // Determine dynamic upper and lower boundaries for the integral term
             let max_allowed_integral = output_saturation - partial_sum;
@@ -223,6 +221,42 @@ impl<T: FloatCore> PidController<T> {
 
         // The PID calculation with additional S setpoint(openloop) and K kick(setpoint derivative) terms
         // P+D+S+K  + I
+        partial_sum + self.error_integral
+    }
+
+    /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `ki` are zero.
+    pub fn update_spi(&mut self, measurement: T, dt: T) -> T {
+        debug_assert!(dt != T::zero());
+
+        self.measurement_previous = measurement;
+
+        self.error = self.setpoint - measurement;
+
+        // Perform Euler integration
+        self.error_integral += self.gains.ki * self.error * dt;
+
+        // Anti-windup via integral clamping
+        if let Some(max) = self.limits.integral_max {
+            self.error_integral = self.error_integral.min(max);
+        }
+        if let Some(min) = self.limits.integral_min {
+            self.error_integral = self.error_integral.max(min);
+        }
+
+        let partial_sum = self.gains.kp * self.error + self.gains.ks * self.setpoint;
+
+        // Anti-windup clamping based on output saturation limit
+        if let Some(output_saturation) = self.limits.output_saturation {
+            // Determine dynamic upper and lower boundaries for the integral term
+            let max_allowed_integral = output_saturation - partial_sum;
+            let min_allowed_integral = -output_saturation - partial_sum;
+
+            // Clamp the accumulator within the calculated window
+            self.error_integral = self.error_integral.clamp(min_allowed_integral, max_allowed_integral);
+        }
+
+        // The PID calculation with additional S setpoint(openloop) and K kick(setpoint derivative) terms
+        // P + S    + I
         partial_sum + self.error_integral
     }
 
@@ -249,13 +283,13 @@ impl<T: FloatCore> PidController<T> {
     }
 
     /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `kd` are zero.
-    pub fn update_spd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
-        debug_assert!(delta_t != T::zero());
+    pub fn update_spd(&mut self, measurement: T, measurement_delta: T, dt: T) -> T {
+        debug_assert!(dt != T::zero());
 
         self.measurement_previous = measurement;
         self.error = self.setpoint - measurement;
 
-        self.error_derivative = -measurement_delta / delta_t; // note minus sign, error delta has reverse polarity to measurement delta
+        self.error_derivative = -measurement_delta / dt; // note minus sign, error delta has reverse polarity to measurement delta
 
         // The PD (no I) calculation with additional S setpoint(openloop) term
         //         P               + D                                     + S
@@ -264,8 +298,8 @@ impl<T: FloatCore> PidController<T> {
 
     /// Optimized form of `update` that assumes that `ki` is zero.
     #[inline]
-    pub fn update_skpd(&mut self, measurement: T, measurement_delta: T, delta_t: T) -> T {
-        self.update_spd(measurement, measurement_delta, delta_t) + self.gains.kk * self.setpoint_derivative
+    pub fn update_skpd(&mut self, measurement: T, measurement_delta: T, dt: T) -> T {
+        self.update_spd(measurement, measurement_delta, dt) + self.gains.kk * self.setpoint_derivative
     }
 
     /// Partial PID sum helper function, excludes `Iterm`,
@@ -290,11 +324,11 @@ impl<T: FloatCore> PidController<T> {
     }
 
     /// Set the setpoint and calculate the setpoint derivative.
-    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, delta_t: T) {
-        debug_assert!(delta_t != T::zero());
+    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: T) {
+        debug_assert!(dt != T::zero());
         self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
-        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / delta_t;
+        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;
     }
 
     /// Return the setpoint.

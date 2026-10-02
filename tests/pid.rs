@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn update_delta() {
-        use signal_filters::{Pt1Filterf32, SignalFilter};
+        use signal_filters::{Pt1Filterf32, SignalFilter, UpdateFilter};
         let delta_t: f32 = 0.01;
         let pid_gains = PidGainsf32 {
             kp: 0.1,
@@ -140,15 +140,22 @@ mod tests {
             kk: 0.0,
         };
         let mut pid = PidControllerf32::new().with_gains(pid_gains);
-        let mut filter = Pt1Filterf32::new();
+        let mut dterm_filter = Pt1Filterf32::new();
 
         pid.set_setpoint(2.1);
 
         let measurement: f32 = 0.2;
         let measurement_delta = measurement - pid.previous_measurement();
-        let measurement_delta_filtered = filter.update(measurement_delta);
+        let measurement_delta_filtered = dterm_filter.update(measurement_delta);
         let output = pid.update_delta(measurement, measurement_delta_filtered, delta_t);
         assert_near!(-0.010_000_005, output);
+
+        let output = pid.update_delta(
+            measurement,
+            (measurement - pid.previous_measurement()).filter_using(&mut dterm_filter),
+            delta_t,
+        );
+        assert_near!(0.19, output);
     }
 
     #[test]
