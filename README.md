@@ -4,8 +4,8 @@
 [![Documentation](https://docs.rs/pidsk-controller/badge.svg)](https://docs.rs/pidsk-controller)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/martinbudden/pidsk-controller)
 
-`pidsk-controller` provides a PID controller together with features useful for real-world control applications,
-including variable loop timing, integral anti-windup, user-controlled derivative filtering, runtime gain changes, and access to individual PID terms.
+`pidsk-controller` is a PID controller with additional features useful for real-world control applications,
+including: variable loop timing, integral anti-windup, user-controlled derivative filtering, and runtime gain changes.
 
 The controller is available for both `f32` and `f64`.
 
@@ -14,18 +14,19 @@ This crate is `no_std`, `no alloc`, and the Minimum Supported Rust Version (MSRV
 ## Features
 
 - **P, I, and D control** using independent `kp`, `ki`, and `kd` gains.
-- **Setpoint feed-forward** using the `ks` gain.
-- **Setpoint derivative kick** using the `kk` gain. Allows intentional derivative kick.
-- **Derivative on measurement**, avoids unintentional derivative kick when the setpoint changes.
-- **Variable loop timing** by supplying `delta_t` to `update()`.
+- **Setpoint feed-forward** (openloop control) using the `ks` gain.
+- **Setpoint derivative kick** using the `kk` gain. Allows *intentional* derivative kick.
+- **Derivative on measurement**, avoids *unintentional* derivative kick when the setpoint changes.
+- **Variable loop timing** by supplying `dt` to `update()`.
 - **Integral anti-windup** using integral limits, output saturation, or both.
 - **User-controlled D-term filtering** through `update_delta()`.
-- **Dynamic PID control**, including runtime gain changes.
+- **Dynamic PID control**, including runtime gain changes with output jump mitigation.
 - **Runtime integration control**, allowing the I-term to be switched on or off.
 - **Custom I-term error** through `update_delta_iterm()`, allowing I-term relaxation.
-- **Access to individual PID terms** for tuning, telemetry, and testing.
+- **Access to individual PID terms** for logging, tuning, telemetry, and testing.
 - **Optimized update functions** for common **P**, **PI**, **PD**, and other configurations.
 - **`f32` and `f64` variants**.
+- **Optional `serde` support**: enable the `serde` feature to add `Serialize` and `Deserialize`.
 
 ## Controller formulation
 
@@ -71,7 +72,7 @@ let mut pid_controller = PidControllerf32::new()
    .with_ki(0.1)
    .with_kd(0.05);
 
-let delta_t = 0.01; // seconds
+let dt = 0.01; // seconds
 
 // Set the desired value.
 pid_controller.set_setpoint(10.0);
@@ -80,14 +81,14 @@ pid_controller.set_setpoint(10.0);
 let measurement = 8.5;
 
 // Call update() from the control loop.
-let control_signal = pid_controller.update(measurement, delta_t);
+let command = pid_controller.update(measurement, dt);
 
-// Apply control_signal to the system being controlled.
+// Apply command to the system being controlled.
 // ...
 ```
 
-`delta_t` is supplied to each call, so the controller does not require a perfectly periodic control loop.
-Small variations in loop timing (jitter) are handled correctly.
+`dt` is supplied to each call, so the controller does not require a perfectly periodic control loop.
+Variations in loop timing (jitter) are handled automatically.
 
 ## `f32` and `f64`
 
@@ -108,7 +109,7 @@ The S-term provides a component of the output based directly on the setpoint rat
 This is known as open loop control, or feed-forward control.
 
 It is useful when part of the required control output can be predicted from the desired operating point,
-for example setting the control surfaces on a fixed-wing aircraft.
+for example setting the control surfaces on a fixed-wing aircraft, or setting the power of a heater based on the current temperature.
 
 ## Setpoint derivative and derivative kick
 
@@ -117,17 +118,18 @@ This avoids *unintentional* derivative kick when the setpoint changes.
 
 If setpoint derivative kick is desired, it can be added explicitly using the K-term.
 
+Flight controllers (such as Betaflight) use derivative kick to make the aircraft more responsive to control-stick inputs.
 (Note that Betaflight uses the term "feed-forward" for setpoint derivative kick.)
 
 ## Integral anti-windup
 
 Integral windup can occur when the controller output is unable to reach the value requested by the PID calculation,
-for example when an actuator has reached its limit.
+for example when an actuator has reached its limit, or a heater has reached its maximum power.
 
 `pidsk-controller` provides two ways of limiting the integral term:
 
-1. **Integral limits** — constrain the accumulated integral value.
-2. **Output saturation** — prevent integration when the controller output has saturated.
+1. **Integral limits** — constrains the accumulated integral value.
+2. **Output saturation** — prevents integration when the controller output has saturated.
 
 For example:
 
@@ -167,7 +169,7 @@ let mut pid_controller = PidControllerf32::new();
 let mut dterm_filter = Pt1Filterf32::new().with_k(0.9);
 
 // 1000 Hz update rate
-let delta_t = 0.001;
+let dt = 0.001;
 
 // Simulated measurement
 let measurement = 1.2;
@@ -180,7 +182,27 @@ let filtered_measurement_delta = measurement_delta.filter_using(&mut dterm_filte
 let command = pid_controller.update_delta(
     measurement,
     filtered_measurement_delta,
-    delta_t,
+    dt,
+);
+```
+
+The above code shows the intermediate steps for clarity. It can be written more compactly:
+
+```rust
+use pidsk_controller::{PidControllerf32};
+use signal_filters::{Pt1Filterf32, UpdateFilter};
+
+let mut pid_controller = PidControllerf32::new();
+let mut dterm_filter = Pt1Filterf32::new().with_k(0.9);
+let dt = 0.001;
+
+// Simulated measurement
+let measurement = 1.2;
+
+let command = pid_controller.update_delta(
+    measurement,
+    (measurement - pid_controller.previous_measurement()).filter_using(&mut dterm_filter),
+    dt,
 );
 ```
 
@@ -213,7 +235,7 @@ let output = pid_controller.update_delta_iterm(
     measurement,
     measurement_delta,
     iterm_error,
-    delta_t,
+    dt,
 );
 ```
 
@@ -252,29 +274,43 @@ pid_controller.update_gains(new_gains);
 
 This is useful for applications where PID gains are changed during operation.
 For example a Flight Controller for a quadcopter may reduce the PID gains at high throttle values.
+Or the gains may be changed during in-flight PID tuning.
 
 ## Choosing an update function
 
-For most applications, the standard `update()` function is suitable.
+For most applications, use either the standard `update()`, or `update_delta()` if you want to filter the D-term.
 
 ```text
-let output = pid_controller.update(measurement, delta_t);
+let output = pid_controller.update(measurement, dt);
 ```
 
 Use the other update functions when your application needs a specific calculation or when avoiding unnecessary work is important.
 
-| Function               | Purpose                                                               |
-| ---------------------- | --------------------------------------------------------------------- |
-| `update()`             | General PID update                                                    |
-| `update_delta()`       | Supply a measurement delta, allowing application-controlled filtering |
-| `update_delta_iterm()` | Supply both a measurement delta and custom I-term error               |
-| `update_p()`           | Optimized P-only controller                                           |
-| `update_sp()`          | Optimized P + setpoint feed-forward controller                        |
-| `update_spd()`         | Optimized P + S + D controller                                        |
-| `update_skpd()`        | Optimized form with integration disabled                              |
+| Function               | Purpose                                                                      |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `update()`             | General PID update                                                           |
+| `update_delta()`       | Supply a measurement delta, allowing application-controlled D-term filtering |
+| `update_delta_iterm()` | Supply both a measurement delta and custom I-term error                      |
+| `update_p()`           | Optimized P-only controller                                                  |
+| `update_sp()`          | Optimized P + setpoint feed-forward controller                               |
+| `update_spi()`         | Optimized P + S + I controller                                               |
+| `update_spd()`         | Optimized P + S + D controller                                               |
+| `update_skpd()`        | Optimized form with integration disabled                                     |
 
 The optimized functions are particularly useful in applications with high control-loop frequency
 (ie in the kilohertz range) where avoiding unnecessary calculations is important.
+
+### Examples
+
+**Quadcopter with 8kHz gyro/PID loop**: use `update_delta_iterm` for full control on the Roll and Pitch axes,
+use `update_sp` for optimized calculation on the Yaw axis.
+
+**Self-balancing robot**: use `update_delta` on the Pitch axis and `update_sp` on the Yaw axis.
+
+**Thermostat**: use `update` for simplicity. Use `ks`, `kp` and `ki` for some openloop control. `kd` and `kk` are set to zero.
+
+**Aircraft altitude hold**: use a Dual-Ring cascaded PID Loop. The outer (altitude) loop is a pure P-controller, so used `update_p`.
+The inner (vertical speed) is a PID-controller, so use `update`.
 
 ## Inspecting PID terms
 
