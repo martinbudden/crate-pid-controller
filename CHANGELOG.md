@@ -15,6 +15,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 - `PController`, pure P-controller and corresponding `PErrors` and `PGains`.
 - `PdController`,  PD-controller and corresponding `PdErrors` and `PdGains`.
+- `PidController`,  PID-controller and corresponding `PidErrors` and `PidGains`.
 
 ### Changed
 
