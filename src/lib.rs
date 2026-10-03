@@ -19,10 +19,10 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::doc_paragraphs_missing_punctuation)]
 
-mod pid_errors;
-mod pid_gains;
 mod pid_limits;
 mod pidsk_controller;
+mod pidsk_errors;
+mod pidsk_gains;
 
 mod p_controller;
 mod p_errors;
@@ -32,10 +32,10 @@ mod pd_controller;
 mod pd_errors;
 mod pd_gains;
 
-pub use pid_errors::{PidErrors, PidErrorsf32, PidErrorsf64};
-pub use pid_gains::{PidGains, PidGainsf32, PidGainsf64};
 pub use pid_limits::{PidLimits, PidLimitsf32, PidLimitsf64};
-pub use pidsk_controller::{PidController, PidControllerf32, PidControllerf64};
+pub use pidsk_controller::{PidskController, PidskControllerf32, PidskControllerf64};
+pub use pidsk_errors::{PidskErrors, PidskErrorsf32, PidskErrorsf64};
+pub use pidsk_gains::{PidskGains, PidskGainsf32, PidskGainsf64};
 
 pub use p_controller::{PController, PControllerf32, PControllerf64};
 pub use p_errors::{PErrors, PErrorsf32, PErrorsf64};

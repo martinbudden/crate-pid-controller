@@ -1,7 +1,7 @@
 use core::ops::AddAssign;
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
-use crate::{PidGains, PidLimits};
+use crate::{PidLimits, PidskGains};
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -12,13 +12,13 @@ use {
 };
 
 /// `Pid` using `f32` values.
-pub type PidControllerf32 = PidController<f32>;
+pub type PidskControllerf32 = PidskController<f32>;
 
 /// `Pid` using `f64` values.
-pub type PidControllerf64 = PidController<f64>;
+pub type PidskControllerf64 = PidskController<f64>;
 
 /// PID controller with open loop control (generic form).<br>
-/// `Pidf32` and `Pidf64` aliases are available.<br>
+/// `PidskControllerf32` and `PidskControllerf64` aliases are available.<br>
 /// This includes setpoint gain (classical feed forward) and<br>
 /// setpoint derivative gain (kick - called feedforward by Betaflight).<br><br>
 ///
@@ -27,8 +27,8 @@ pub type PidControllerf64 = PidController<f64>;
 ///
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-pub struct PidController<T> {
-    gains: PidGains<T>,
+pub struct PidskController<T> {
+    gains: PidskGains<T>,
     limits: PidLimits<T>,
     /// saved value of pid.ki, so integration can be switched on and off.
     ki_saved: T,
@@ -43,30 +43,30 @@ pub struct PidController<T> {
 }
 
 #[cfg(feature = "storage")]
-impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidskController<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
-/// Default `Pid`.
+/// Default `PidskController`.
 /// ```
-/// # use pidsk_controller::PidControllerf32;
+/// # use pidsk_controller::PidskControllerf32;
 /// # use num_traits::Zero;
 ///
-/// let pid = PidControllerf32::default();
+/// let pid = PidskControllerf32::default();
 ///
 /// assert_eq!(1.0, pid.gains().kp);
 /// ```
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> Default for PidController<T> {
+impl<T: FloatCore + AddAssign + ConstZero + ConstOne> Default for PidskController<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
+impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidskController<T> {
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            gains: PidGains::new(),
+            gains: PidskGains::new(),
             limits: PidLimits::new(),
             ki_saved: T::ZERO,
             measurement_previous: T::ZERO,
@@ -80,7 +80,7 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
 
     /// Set the gains of a newly constructed PID controller.
     #[must_use]
-    pub fn with_gains(mut self, gains: PidGains<T>) -> Self {
+    pub fn with_gains(mut self, gains: PidskGains<T>) -> Self {
         self.set_gains(gains);
         self
     }
@@ -143,12 +143,12 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
     }
 }
 
-impl<T: FloatCore + AddAssign> PidController<T> {
+impl<T: FloatCore + AddAssign> PidskController<T> {
     /// PID update.
     /// ```
-    /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
+    /// # use pidsk_controller::{PidskControllerf32, PidskGainsf32};
     /// let dt: f32 = 0.01;
-    /// let mut pid = PidControllerf32::new().with_kp(0.1);
+    /// let mut pid = PidskControllerf32::new().with_kp(0.1);
     ///
     /// pid.set_setpoint(8.7);
     ///
@@ -166,10 +166,10 @@ impl<T: FloatCore + AddAssign> PidController<T> {
     /// This allows the user to filter `measurement_delta` with a filter of their choice.
     ///
     /// ```
-    /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
+    /// # use pidsk_controller::{PidskControllerf32, PidskGainsf32};
     /// # use signal_filters::{Pt1Filterf32, UpdateFilter};
     /// let dt: f32 = 0.01;
-    /// let mut pid = PidControllerf32::new().with_kp(0.1).with_kd(0.01);
+    /// let mut pid = PidskControllerf32::new().with_kp(0.1).with_kd(0.01);
     /// let mut dterm_filter = Pt1Filterf32::new().with_k(1.0);
     ///
     /// pid.set_setpoint(2.1);
@@ -366,7 +366,7 @@ impl<T: FloatCore + AddAssign> PidController<T> {
     }
 
     /// Safely update PID gains on the fly without causing an output bump.
-    pub fn update_gains(&mut self, new_gains: PidGains<T>) {
+    pub fn update_gains(&mut self, new_gains: PidskGains<T>) {
         // Calculate the current components using OLD gains
         let old_partial_sum = self.partial_sum();
         let old_error_integral = self.error_integral;
@@ -398,10 +398,10 @@ impl<T: FloatCore + AddAssign> PidController<T> {
     }
 }
 
-impl<T: FloatCore> PidController<T> {
+impl<T: FloatCore> PidskController<T> {
     /// Return the pid gains. The set value of ki is returned, whether integration is turned on or not.
-    pub fn gains(&self) -> PidGains<T> {
-        PidGains {
+    pub fn gains(&self) -> PidskGains<T> {
+        PidskGains {
             kp: self.gains.kp,
             ki: self.ki_saved,
             kd: self.gains.kd,
@@ -411,7 +411,7 @@ impl<T: FloatCore> PidController<T> {
     }
 
     /// Set the PID gains, setting `error_integral` to zero if `ki` is zero.
-    pub fn set_gains(&mut self, gains: PidGains<T>) {
+    pub fn set_gains(&mut self, gains: PidskGains<T>) {
         self.gains = gains;
         self.ki_saved = self.gains.ki;
         if self.gains.ki.abs() <= T::epsilon() {
@@ -422,10 +422,10 @@ impl<T: FloatCore> PidController<T> {
     }
 }
 
-impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
-    fn from(pid: PidGains<T>) -> Self {
+impl<T: FloatCore + Default> From<PidskGains<T>> for PidskController<T> {
+    fn from(pid: PidskGains<T>) -> Self {
         Self {
-            gains: PidGains {
+            gains: PidskGains {
                 kp: pid.kp,
                 ki: pid.ki,
                 kd: pid.kd,
@@ -449,7 +449,7 @@ impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
 }
 
 #[allow(missing_docs)]
-impl<T: FloatCore> PidController<T> {
+impl<T: FloatCore> PidskController<T> {
     pub fn limits(&self) -> PidLimits<T> {
         self.limits
     }
@@ -506,7 +506,7 @@ impl<T: FloatCore> PidErrors<T> {
 }
 
 /// Accessor functions to obtain error values.
-impl<T: FloatCore> PidController<T> {
+impl<T: FloatCore> PidskController<T> {
     /// Returns the PID errors, multiplied by the PID gains.
     pub fn error(&self) -> PidErrors<T> {
         PidErrors {

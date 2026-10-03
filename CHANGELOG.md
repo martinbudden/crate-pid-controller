@@ -16,6 +16,12 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 - `PController`, pure P-controller and corresponding `PErrors` and `PGains`.
 - `PdController`,  PD-controller and corresponding `PdErrors` and `PdGains`.
 
+### Changed
+
+- Renamed `PidController` to `PidskController`.
+- Renamed `PidGains` to `PidskGains`.
+- Renamed `PidErrors` to `PidskErrors`.
+
 ### Removed
 
 - `PidController::setpoint_previous` and `PidController::previous()`.

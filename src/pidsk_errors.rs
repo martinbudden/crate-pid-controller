@@ -8,16 +8,16 @@ use {
     serde::{Deserialize, Serialize},
 };
 
-/// `PidError` using `f32` values.
-pub type PidErrorsf32 = PidErrors<f32>;
-/// `PidError` using `f64` values.
-pub type PidErrorsf64 = PidErrors<f64>;
+/// `PidskErrors` using `f32` values.
+pub type PidskErrorsf32 = PidskErrors<f32>;
+/// `PidskErrors` using `f64` values.
+pub type PidskErrorsf64 = PidskErrors<f64>;
 
 /// P, I, D, S, and K errors as calculated by PID controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 #[allow(missing_docs)]
-pub struct PidErrors<T> {
+pub struct PidskErrors<T> {
     pub p: T,
     pub i: T,
     pub d: T,
@@ -26,15 +26,15 @@ pub struct PidErrors<T> {
 }
 
 #[cfg(feature = "storage")]
-impl<T> PostcardValue<'_> for PidErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
+impl<T> PostcardValue<'_> for PidskErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
-impl<T: FloatCore> Default for PidErrors<T> {
+impl<T: FloatCore> Default for PidskErrors<T> {
     fn default() -> Self {
         Self::new(T::zero(), T::zero(), T::zero(), T::zero(), T::zero())
     }
 }
 
-impl<T: FloatCore> PidErrors<T> {
+impl<T: FloatCore> PidskErrors<T> {
     /// Constructor.
     #[allow(clippy::many_single_char_names)]
     pub const fn new(p: T, i: T, d: T, s: T, k: T) -> Self {
@@ -54,10 +54,10 @@ mod test_traits {
 
     #[test]
     fn normal_types() {
-        is_full::<PidErrorsf32>();
+        is_full::<PidskErrorsf32>();
         #[cfg(feature = "serde")]
-        is_serde::<PidErrorsf32>();
+        is_serde::<PidskErrorsf32>();
         #[cfg(feature = "storage")]
-        is_storage::<PidErrorsf32>();
+        is_storage::<PidskErrorsf32>();
     }
 }

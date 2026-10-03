@@ -1,4 +1,4 @@
-use pidsk_controller::{PidControllerf32, PidErrorsf32, PidGainsf32, PidLimitsf32};
+use pidsk_controller::{PidLimitsf32, PidskControllerf32, PidskErrorsf32, PidskGainsf32};
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -22,22 +22,22 @@ mod test_traits {
 
     #[test]
     fn normal_types() {
-        is_full::<PidControllerf32>();
-        is_full::<PidGainsf32>();
-        is_full::<PidErrorsf32>();
+        is_full::<PidskControllerf32>();
+        is_full::<PidskGainsf32>();
+        is_full::<PidskErrorsf32>();
         is_full::<PidLimitsf32>();
         #[cfg(feature = "serde")]
         {
-            is_serde::<PidControllerf32>();
-            is_serde::<PidGainsf32>();
-            is_serde::<PidErrorsf32>();
+            is_serde::<PidskControllerf32>();
+            is_serde::<PidskGainsf32>();
+            is_serde::<PidskErrorsf32>();
             is_serde::<PidLimitsf32>();
         }
         #[cfg(feature = "storage")]
         {
-            is_storage::<PidControllerf32>();
-            is_storage::<PidGainsf32>();
-            is_storage::<PidErrorsf32>();
+            is_storage::<PidskControllerf32>();
+            is_storage::<PidskGainsf32>();
+            is_storage::<PidskErrorsf32>();
             is_storage::<PidLimitsf32>();
         }
     }
@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn default() {
-        let pid: PidControllerf32 = PidControllerf32::default();
+        let pid: PidskControllerf32 = PidskControllerf32::default();
         let pid_gains = pid.gains();
         assert_eq!(1.0, pid_gains.kp);
         assert_eq!(0.0, pid_gains.ki);
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn test_pid_init() {
-        let pid = PidControllerf32::new();
+        let pid = PidskControllerf32::new();
         let pid_gains = pid.gains();
         assert_eq!(1.0, pid_gains.kp);
         assert_eq!(0.0, pid_gains.ki);
@@ -88,14 +88,14 @@ mod tests {
 
     #[test]
     fn test_pid() {
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 5.0,
             ki: 3.0,
             kd: 1.0,
             ks: 0.0,
             kk: 0.0,
         };
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
+        let mut pid = PidskControllerf32::new().with_gains(pid_gains);
         let pid_gains = pid.gains();
 
         assert_eq!(5.0, pid_gains.kp);
@@ -120,7 +120,7 @@ mod tests {
     fn update() {
         let delta_t: f32 = 0.01;
 
-        let mut pid = PidControllerf32::new().with_kp(0.1);
+        let mut pid = PidskControllerf32::new().with_kp(0.1);
         pid.set_setpoint(8.7);
 
         let measurement: f32 = 9.2;
@@ -132,14 +132,14 @@ mod tests {
     fn update_delta() {
         use signal_filters::{Pt1Filterf32, SignalFilter, UpdateFilter};
         let delta_t: f32 = 0.01;
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 0.1,
             ki: 0.0,
             kd: 0.01,
             ks: 0.0,
             kk: 0.0,
         };
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
+        let mut pid = PidskControllerf32::new().with_gains(pid_gains);
         let mut dterm_filter = Pt1Filterf32::new();
 
         pid.set_setpoint(2.1);
@@ -162,14 +162,14 @@ mod tests {
     fn update_delta_iterm() {
         use signal_filters::{Pt1Filterf32, SignalFilter};
         let delta_t: f32 = 0.01;
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 0.1,
             ki: 0.05,
             kd: 0.01,
             ks: 0.0,
             kk: 0.0,
         };
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
+        let mut pid = PidskControllerf32::new().with_gains(pid_gains);
         let mut filter = Pt1Filterf32::new();
 
         pid.set_setpoint(2.1);
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_p_controller() {
         let delta_t: f32 = 1.0;
-        let mut pid = PidControllerf32::new();
+        let mut pid = PidskControllerf32::new();
         let pid_gains = pid.gains();
 
         assert_eq!(1.0, pid_gains.kp);
@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn test_pi_controller() {
         let delta_t: f32 = 1.0;
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 0.3,
             ki: 0.2,
             kd: 0.0,
@@ -263,7 +263,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
+        let mut pid = PidskControllerf32::new().with_gains(pid_gains);
 
         assert_eq!(0.3, pid_gains.kp);
         assert_eq!(0.2, pid_gains.ki);
@@ -356,7 +356,7 @@ mod tests {
     #[test]
     fn test_update_pi() {
         let delta_t: f32 = 1.0;
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 0.3,
             ki: 0.2,
             kd: 0.0,
@@ -364,7 +364,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
+        let mut pid = PidskControllerf32::new().with_gains(pid_gains);
 
         assert_eq!(0.3, pid_gains.kp);
         assert_eq!(0.2, pid_gains.ki);
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn test_integration_on_off() {
         let delta_t: f32 = 1.0;
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 0.2,
             ki: 0.3,
             kd: 0.0,
@@ -465,7 +465,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
+        let mut pid = PidskControllerf32::new().with_gains(pid_gains);
 
         assert_eq!(0.0, pid.setpoint());
 
@@ -560,7 +560,7 @@ mod tests {
     #[test]
     fn test_integral_limit() {
         let delta_t: f32 = 1.0;
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 0.2,
             ki: 0.3,
             kd: 0.0,
@@ -568,7 +568,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::new().with_gains(pid_gains);
+        let mut pid = PidskControllerf32::new().with_gains(pid_gains);
         pid.set_integral_limit(2.0);
 
         assert_eq!(0.0, pid.setpoint());
@@ -613,7 +613,7 @@ mod tests {
     #[test]
     fn test_integral_saturation_positive() {
         let delta_t: f32 = 1.0;
-        let pid_gains = PidGainsf32 {
+        let pid_gains = PidskGainsf32 {
             kp: 0.2,
             ki: 0.3,
             kd: 0.0,
@@ -621,7 +621,7 @@ mod tests {
             kk: 0.0,
         };
 
-        let mut pid = PidControllerf32::new()
+        let mut pid = PidskControllerf32::new()
             .with_gains(pid_gains)
             .with_output_saturation(1.5);
 
@@ -701,7 +701,7 @@ mod tests {
     #[test]
     fn test_integral_saturation_negative() {
         let delta_t: f32 = 1.0;
-        let mut pid = PidControllerf32::new()
+        let mut pid = PidskControllerf32::new()
             .with_kp(0.2)
             .with_ki(0.3)
             .with_output_saturation(1.5);
@@ -739,8 +739,8 @@ mod tests {
         assert_eq!(1.5, output);
     }
 
-    fn setup_test_pid() -> PidControllerf32 {
-        let gains = PidGainsf32 {
+    fn setup_test_pid() -> PidskControllerf32 {
+        let gains = PidskGainsf32 {
             kp: 2.0,
             ki: 0.5,
             kd: 0.1,
@@ -754,7 +754,7 @@ mod tests {
             output_saturation: Some(15.0),
         };
 
-        PidControllerf32::new().with_gains(gains).with_limits(limits)
+        PidskControllerf32::new().with_gains(gains).with_limits(limits)
         //Pid::new(gains)
     }
 
@@ -777,7 +777,7 @@ mod tests {
         assert!(pid.error().i.abs() > 0.0, "Integral term should not be zero");
 
         // Step 2: Define new radically different gains
-        let new_gains = PidGainsf32 {
+        let new_gains = PidskGainsf32 {
             kp: 5.0,
             ki: 2.5,
             kd: 0.5,
@@ -815,7 +815,7 @@ mod tests {
         let _old_output = pid.update(4.4, delta_t);
 
         // Switch to a purely PD controller (Ki drops to 0.0 entirely)
-        let new_gains = PidGainsf32 {
+        let new_gains = PidskGainsf32 {
             kp: 4.0,
             ki: 0.0, // Turn off integration completely
             kd: 0.2,

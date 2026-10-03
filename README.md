@@ -78,9 +78,9 @@ where `kc = kp`, `tau_i = kp / ki` and `tau_d = kd / kp`).
 A basic PID controller can be created by specifying its gains and then calling `update()` from the control loop:
 
 ```rust
-use pidsk_controller::PidControllerf32;
+use pidsk_controller::PidskControllerf32;
 
-let mut pid_controller = PidControllerf32::new()
+let mut pid_controller = PidskControllerf32::new()
    .with_kp(2.0)
    .with_ki(0.1)
    .with_kd(0.05);
@@ -107,13 +107,13 @@ Variations in loop timing (jitter) are handled automatically.
 
 The crate provides `f32` and `f64` variants of the main controller types:
 
-1. `PidControllerf32`, `PidControllerf64`
-2. `PidGainsf32`, `PidGainsf64`
-3. `PidLimitsf32`, `PidLimitsf64`
-4. `PidErrorsf32`, `PidErrorsf64`
+1. `PidskControllerf32`, `PidskControllerf64`
+2. `PidskGainsf32`, `PidskGainsf64`
+3. `PidskErrorsf32`, `PidskErrorsf64`
+4. `PidLimitsf32`, `PidLimitsf64`
 
 These are type aliases for the corresponding generic types.
-So `PidControllerf32` is an alias for `PidController<f32>`, but that is transparent to the user.
+So `PidskControllerf32` is an alias for `PidskController<f32>`, but that is transparent to the user.
 
 ## Setpoint control
 
@@ -147,9 +147,9 @@ for example when an actuator has reached its limit, or a heater has reached its 
 For example:
 
 ```rust
-use pidsk_controller::PidControllerf32;
+use pidsk_controller::PidskControllerf32;
 
-let mut pid_controller = PidControllerf32::new()
+let mut pid_controller = PidskControllerf32::new()
    .with_kp(2.0)
    .with_ki(0.1)
    .with_kd(0.05)
@@ -157,7 +157,7 @@ let mut pid_controller = PidControllerf32::new()
 
 // or with asymmetric limits:
 
-let mut pid_controller = PidControllerf32::new()
+let mut pid_controller = PidskControllerf32::new()
    .with_kp(2.0)
    .with_ki(0.1)
    .with_kd(0.05)
@@ -165,7 +165,7 @@ let mut pid_controller = PidControllerf32::new()
 
 // or with output saturation
 
-let mut pid_controller = PidControllerf32::new()
+let mut pid_controller = PidskControllerf32::new()
    .with_kp(2.0)
    .with_ki(0.1)
    .with_kd(0.05)
@@ -181,10 +181,10 @@ The Integral Limits and Output Saturation can be used together, if desired.
 Instead, `update_delta()` allows the application to provide its own filter:
 
 ```rust
-use pidsk_controller::PidControllerf32;
+use pidsk_controller::PidskControllerf32;
 use signal_filters::{Pt1Filterf32, UpdateFilter};
 
-let mut pid_controller = PidControllerf32::new();
+let mut pid_controller = PidskControllerf32::new();
 
 // Create a filter for the D-term
 let mut dterm_filter = Pt1Filterf32::new().with_k(0.9);
@@ -210,10 +210,10 @@ let command = pid_controller.update_delta(
 The above code shows the intermediate steps for clarity. It can be written more compactly:
 
 ```rust
-use pidsk_controller::PidControllerf32;
+use pidsk_controller::PidskControllerf32;
 use signal_filters::{Pt1Filterf32, UpdateFilter};
 
-let mut pid_controller = PidControllerf32::new();
+let mut pid_controller = PidskControllerf32::new();
 let mut dterm_filter = Pt1Filterf32::new().with_k(0.9);
 let dt = 0.001;
 
@@ -268,8 +268,8 @@ for example during aggressive manuevers by an aircraft.
 Integration can also be switched off and on at runtime:
 
 ```rust
-use pidsk_controller::PidControllerf32;
-let mut pid_controller = PidControllerf32::new();
+use pidsk_controller::PidskControllerf32;
+let mut pid_controller = PidskControllerf32::new();
 
 pid_controller.switch_integration_off();
 
@@ -338,8 +338,8 @@ The inner (vertical speed) loop is a PID-controller, so use `update`.
 The current PID terms can be obtained using:
 
 ```rust
-use pidsk_controller::PidControllerf32;
-let mut pid_controller = PidControllerf32::new();
+use pidsk_controller::PidskControllerf32;
+let mut pid_controller = PidskControllerf32::new();
 
 let errors = pid_controller.error();
 
