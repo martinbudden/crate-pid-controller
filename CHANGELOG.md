@@ -11,6 +11,11 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ## [0.1.11] - 2026-10-xx
 
+### Added
+
+- `PController`, pure P-controller and corresponding `PErrors` and `PGains`.
+- `PdController`,  PD-controller and corresponding `PdErrors` and `PdGains`.
+
 ### Removed
 
 - `PidController::setpoint_previous` and `PidController::previous()`.

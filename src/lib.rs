@@ -24,7 +24,23 @@ mod pid_gains;
 mod pid_limits;
 mod pidsk_controller;
 
+mod p_controller;
+mod p_errors;
+mod p_gains;
+
+mod pd_controller;
+mod pd_errors;
+mod pd_gains;
+
 pub use pid_errors::{PidErrors, PidErrorsf32, PidErrorsf64};
 pub use pid_gains::{PidGains, PidGainsf32, PidGainsf64};
 pub use pid_limits::{PidLimits, PidLimitsf32, PidLimitsf64};
 pub use pidsk_controller::{PidController, PidControllerf32, PidControllerf64};
+
+pub use p_controller::{PController, PControllerf32, PControllerf64};
+pub use p_errors::{PErrors, PErrorsf32, PErrorsf64};
+pub use p_gains::{PGains, PGainsf32, PGainsf64};
+
+pub use pd_controller::{PdController, PdControllerf32, PdControllerf64};
+pub use pd_errors::{PdErrors, PdErrorsf32, PdErrorsf64};
+pub use pd_gains::{PdGains, PdGainsf32, PdGainsf64};
