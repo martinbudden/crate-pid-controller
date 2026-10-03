@@ -24,6 +24,15 @@ This crate is `no_std`, `no alloc`, and the Minimum Supported Rust Version (MSRV
 - **`f32` and `f64` variants**.
 - **Optional `serde` support**: enable the `serde` feature to add `Serialize` and `Deserialize`.
 
+For cases where the full functionality of a `PidskController` is required, partial forms are provided:
+
+- `PController` - a pure P-controller.
+- `PdController` - a PD-controller.
+- `PidController` - a traditional PID controller, ie a `PidskController` without the S-term and K-term.
+
+These forms are particularly useful for implementing Dual-Ring Cascaded PID Loops, where, because of the cascade,
+some of the gains are redundant.
+
 ## Controller formulation
 
 The controller calculates its output as:
@@ -374,21 +383,16 @@ The controller provides several reset operations.
 
 See:
 
-- [`examples`](examples/).
+- [examples](examples/).
 - [motor-mixers](https://crates.io/crates/motor-mixers): uses `PidControllerf32` to implement a Dynamic Idle Controller
   to ensure the motors do not go below their minimum allowed RPM.
-- [Protoflight](https://crates.io/crates/protoflight): uses `PidControllerf32` in its flight controller stabilization code.
+- [Protoflight](https://crates.io/crates/protoflight): uses `PidskControllerf32` to stabilize the aircraft along its
+  roll, pitch, and yaw axes. It uses `PControllerf32` and `PidControllerf32` as part of its altitude control
+  Dual-Ring Cascaded PID Loop.
 
 ## API documentation
 
 For the complete API, see the documentation on [docs.rs](https://docs.rs/pidsk-controller).
-
-The main types are:
-
-- [`PidController`](https://docs.rs/pidsk-controller/latest/pidsk_controller/struct.PidController.html)
-- [`PidGains`](https://docs.rs/pidsk-controller/latest/pidsk_controller/struct.PidGains.html)
-- [`PidLimits`](https://docs.rs/pidsk-controller/latest/pidsk_controller/struct.PidLimits.html)
-- [`PidErrors`](https://docs.rs/pidsk-controller/latest/pidsk_controller/struct.PidErrors.html)
 
 ## Original implementation
 

@@ -1,7 +1,7 @@
 use core::ops::AddAssign;
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
-use crate::{PidGains, PidLimits};
+use crate::{PidErrors, PidGains, PidLimits};
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -11,16 +11,14 @@ use {
     serde::{Deserialize, Serialize},
 };
 
-/// `Pid` using `f32` values.
+/// `PidController` using `f32` values.
 pub type PidControllerf32 = PidController<f32>;
 
-/// `Pid` using `f64` values.
+/// `PidController` using `f64` values.
 pub type PidControllerf64 = PidController<f64>;
 
-/// PID controller with open loop control (generic form).<br>
+/// PID controller.<br>
 /// `PidControllerf32` and `PidControllerf64` aliases are available.<br>
-/// This includes setpoint gain (classical feed forward) and<br>
-/// setpoint derivative gain (kick - called feedforward by Betaflight).<br><br>
 ///
 /// Uses "independent PID" notation, where the gains are denoted as kp, ki, kd etc.<br>
 /// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
@@ -78,41 +76,42 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
         }
     }
 
-    /// Set the gains of a newly constructed PID controller.
+    /// Set the gains of a newly constructed `PidController`.
     #[must_use]
     pub fn with_gains(mut self, gains: PidGains<T>) -> Self {
         self.set_gains(gains);
         self
     }
 
-    /// Set the `kp` of a newly constructed PID controller.
+    /// Set the `kp` of a newly constructed `PidController`.
     #[must_use]
     pub fn with_kp(mut self, kp: T) -> Self {
         self.gains.kp = kp;
         self
     }
 
-    /// Set the `ki` of a newly constructed PID controller.
+    /// Set the `ki` of a newly constructed `PidController`.
     #[must_use]
     pub fn with_ki(mut self, ki: T) -> Self {
         self.gains.ki = ki;
         self
     }
 
-    /// Set the `kd` of a newly constructed PID controller.
+    /// Set the `kd` of a newly constructed `PidController`.
     #[must_use]
     pub fn with_kd(mut self, kd: T) -> Self {
         self.gains.kd = kd;
         self
     }
-    /// Set the limits of a newly constructed PID controller.
+
+    /// Set the limits of a newly constructed `PidController`.
     #[must_use]
     pub fn with_limits(mut self, limits: PidLimits<T>) -> Self {
         self.set_limits(limits);
         self
     }
 
-    /// Set the limits of a newly constructed PID controller.
+    /// Set the limits of a newly constructed `PidController`.
     #[must_use]
     pub fn with_integral_limits(mut self, integral_max: T, integral_min: T) -> Self {
         self.limits.integral_max = Some(integral_max);
@@ -120,7 +119,15 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
         self
     }
 
-    /// Set the output saturation value of a newly constructed PID controller.
+    /// Set the the max and min integral limits of a newly constructed `PidController` to +/- `integral_limit`.
+    #[must_use]
+    pub fn with_integral_limit(mut self, integral_limit: T) -> Self {
+        self.limits.integral_max = Some(integral_limit);
+        self.limits.integral_min = Some(-integral_limit);
+        self
+    }
+
+    /// Set the output saturation value of a newly constructed `PidController`.
     #[must_use]
     pub fn with_output_saturation(mut self, output_saturation: T) -> Self {
         self.limits.output_saturation = Some(output_saturation);
@@ -129,16 +136,16 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
 }
 
 impl<T: FloatCore + AddAssign> PidController<T> {
-    /// PID update.
+    /// PID-controller update.
     /// ```
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
     /// let dt: f32 = 0.01;
-    /// let mut pid = PidControllerf32::new().with_kp(0.1);
+    /// let mut pid_controller = PidControllerf32::new().with_kp(0.1);
     ///
-    /// pid.set_setpoint(8.7);
+    /// pid_controller.set_setpoint(8.7);
     ///
     /// let measurement:f32 = 9.2;
-    /// let output = pid.update(measurement, dt);
+    /// let output = pid_controller.update(measurement, dt);
     ///
     /// assert_eq!(-0.05, output);
     /// ```
@@ -147,22 +154,22 @@ impl<T: FloatCore + AddAssign> PidController<T> {
         self.update_delta(measurement, measurement - self.measurement_previous, dt)
     }
 
-    /// PID update with `measurement_delta` specified.
+    /// Update with `measurement_delta` specified.
     /// This allows the user to filter `measurement_delta` with a filter of their choice.
     ///
     /// ```
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
     /// # use signal_filters::{Pt1Filterf32, UpdateFilter};
     /// let dt: f32 = 0.01;
-    /// let mut pid = PidControllerf32::new().with_kp(0.1).with_kd(0.01);
+    /// let mut pid_controller = PidControllerf32::new().with_kp(0.1).with_kd(0.01);
     /// let mut dterm_filter = Pt1Filterf32::new().with_k(1.0);
     ///
-    /// pid.set_setpoint(2.1);
+    /// pid_controller.set_setpoint(2.1);
     ///
     /// let measurement:f32 = 0.2;
     ///
-    /// let output = pid.update_delta(measurement,
-    ///     (measurement - pid.previous_measurement()).filter_using(&mut dterm_filter),
+    /// let output = pid_controller.update_delta(measurement,
+    ///     (measurement - pid_controller.previous_measurement()).filter_using(&mut dterm_filter),
     ///     dt,
     /// );
     ///
@@ -232,6 +239,61 @@ impl<T: FloatCore + AddAssign> PidController<T> {
         self.gains.kp * self.error + self.gains.kd * self.error_derivative
     }
 
+    /// Reset the PID integral to zero.
+    #[inline]
+    pub fn reset_integral(&mut self) {
+        self.error_integral = T::zero();
+    }
+
+    /// Switch PID integration off by saving `ki` and then setting `ki` to zero.
+    #[inline]
+    pub fn switch_integration_off(&mut self) {
+        self.ki_saved = self.gains.ki;
+        self.gains.ki = T::zero();
+        self.error_integral = T::zero();
+    }
+
+    /// Switch PID integration back on, restoring the previously saved value of `ki`.
+    #[inline]
+    pub fn switch_integration_on(&mut self) {
+        self.gains.ki = self.ki_saved;
+        self.error_integral = T::zero();
+    }
+
+    /// Safely update gains on the fly without causing an output bump.
+    pub fn update_gains(&mut self, new_gains: PidGains<T>) {
+        // Calculate the current components using OLD gains
+        let old_partial_sum = self.partial_sum();
+        let old_error_integral = self.error_integral;
+
+        // Commit the new gains to the struct
+        self.set_gains(new_gains);
+        if self.error_integral == T::zero() {
+            return;
+        }
+
+        // Calculate partial_sum using NEW gains
+        let new_partial_sum = self.partial_sum();
+
+        self.error_integral = old_error_integral + old_partial_sum - new_partial_sum;
+
+        // Force-clamp the newly calculated accumulator within the Option bounds
+        if let Some(output_saturation) = self.limits.output_saturation {
+            let max = output_saturation - new_partial_sum;
+            let min = -output_saturation - new_partial_sum;
+            self.error_integral = self.error_integral.clamp(min, max);
+        }
+
+        if let Some(max) = self.limits.integral_max {
+            self.error_integral = self.error_integral.min(max);
+        }
+        if let Some(min) = self.limits.integral_min {
+            self.error_integral = self.error_integral.max(min);
+        }
+    }
+}
+
+impl<T: FloatCore> PidController<T> {
     /// Set the setpoint, saving the previous setpoint.
     #[inline]
     pub fn set_setpoint(&mut self, setpoint: T) {
@@ -270,62 +332,8 @@ impl<T: FloatCore + AddAssign> PidController<T> {
         self.measurement_previous
     }
 
-    /// Reset the PID integral to zero.
+    /// Return the gains. The set value of ki is returned, whether integration is turned on or not.
     #[inline]
-    pub fn reset_integral(&mut self) {
-        self.error_integral = T::zero();
-    }
-
-    /// Switch PID integration off by saving `ki` and then setting `ki` to zero.
-    #[inline]
-    pub fn switch_integration_off(&mut self) {
-        self.ki_saved = self.gains.ki;
-        self.gains.ki = T::zero();
-        self.error_integral = T::zero();
-    }
-
-    /// Switch PID integration back on, restoring the previously saved value of `ki`.
-    #[inline]
-    pub fn switch_integration_on(&mut self) {
-        self.gains.ki = self.ki_saved;
-        self.error_integral = T::zero();
-    }
-
-    /// Safely update PID gains on the fly without causing an output bump.
-    pub fn update_gains(&mut self, new_gains: PidGains<T>) {
-        // Calculate the current components using OLD gains
-        let old_partial_sum = self.partial_sum();
-        let old_error_integral = self.error_integral;
-
-        // Commit the new gains to the struct
-        self.set_gains(new_gains);
-        if self.error_integral == T::zero() {
-            return;
-        }
-
-        // Calculate partial_sum using NEW gains
-        let new_partial_sum = self.partial_sum();
-
-        self.error_integral = old_error_integral + old_partial_sum - new_partial_sum;
-
-        // Force-clamp the newly calculated accumulator within the Option bounds
-        if let Some(output_saturation) = self.limits.output_saturation {
-            let max = output_saturation - new_partial_sum;
-            let min = -output_saturation - new_partial_sum;
-            self.error_integral = self.error_integral.clamp(min, max);
-        }
-
-        if let Some(max) = self.limits.integral_max {
-            self.error_integral = self.error_integral.min(max);
-        }
-        if let Some(min) = self.limits.integral_min {
-            self.error_integral = self.error_integral.max(min);
-        }
-    }
-}
-
-impl<T: FloatCore> PidController<T> {
-    /// Return the pid gains. The set value of ki is returned, whether integration is turned on or not.
     pub fn gains(&self) -> PidGains<T> {
         PidGains {
             kp: self.gains.kp,
@@ -334,7 +342,8 @@ impl<T: FloatCore> PidController<T> {
         }
     }
 
-    /// Set the PID gains, setting `error_integral` to zero if `ki` is zero.
+    /// Set the gains, setting `error_integral` to zero if `ki` is zero.
+    #[inline]
     pub fn set_gains(&mut self, gains: PidGains<T>) {
         self.gains = gains;
         self.ki_saved = self.gains.ki;
@@ -398,45 +407,18 @@ impl<T: FloatCore> PidController<T> {
     }
 }
 
-/// P, I, and D errors as calculated by PID controller.<br><br>
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-#[allow(missing_docs)]
-pub struct PidErrors<T> {
-    pub p: T,
-    pub i: T,
-    pub d: T,
-}
-
-#[cfg(feature = "storage")]
-impl<T> PostcardValue<'_> for PidErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
-
-impl<T: FloatCore> Default for PidErrors<T> {
-    fn default() -> Self {
-        Self::new(T::zero(), T::zero(), T::zero())
-    }
-}
-
-impl<T: FloatCore> PidErrors<T> {
-    /// Constructor.
-    #[allow(clippy::many_single_char_names)]
-    pub const fn new(p: T, i: T, d: T) -> Self {
-        Self { p, i, d }
-    }
-}
-
 /// Accessor functions to obtain error values.
 impl<T: FloatCore> PidController<T> {
-    /// Returns the PID errors, multiplied by the PID gains.
+    /// Returns the errors, multiplied by the gains.
     pub fn error(&self) -> PidErrors<T> {
         PidErrors {
             p: self.error * self.gains.kp,
-            i: self.error_integral, // _error_integral is already multiplied by self.pid.ki
+            i: self.error_integral, // error_integral is already multiplied by self.gains.ki
             d: self.error_derivative * self.gains.kd,
         }
     }
 
-    /// Returns the raw values of the PID errors, ie NOT multiplied by the PID gains.
+    /// Returns the raw values of the errors, ie NOT multiplied by the gains.
     pub fn error_raw(&self) -> PidErrors<T> {
         PidErrors {
             p: self.error,
@@ -471,5 +453,25 @@ impl<T: FloatCore> PidController<T> {
         self.error = T::zero();
         self.error_integral = T::zero();
         self.error_derivative = T::zero();
+    }
+}
+
+#[cfg(test)]
+mod test_traits {
+    use super::*;
+
+    fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    #[cfg(feature = "serde")]
+    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    #[cfg(feature = "storage")]
+    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+
+    #[test]
+    fn normal_types() {
+        is_full::<PidControllerf32>();
+        #[cfg(feature = "serde")]
+        is_serde::<PidControllerf32>();
+        #[cfg(feature = "storage")]
+        is_storage::<PidControllerf32>();
     }
 }

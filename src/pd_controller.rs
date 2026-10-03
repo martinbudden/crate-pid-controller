@@ -1,7 +1,7 @@
 use core::ops::AddAssign;
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
-use crate::PdGains;
+use crate::{PdErrors, PdGains};
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -66,21 +66,22 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PdController<T> {
             error_derivative: T::ZERO,
         }
     }
-    /// Set the gains of a newly constructed PD-controller.
+
+    /// Set the gains of a newly constructed `PdController`.
     #[must_use]
     pub fn with_gains(mut self, gains: PdGains<T>) -> Self {
         self.set_gains(gains);
         self
     }
 
-    /// Set the `kp` of a newly constructed PD-controller.
+    /// Set the `kp` of a newly constructed `PdController`.
     #[must_use]
     pub fn with_kp(mut self, kp: T) -> Self {
         self.gains.kp = kp;
         self
     }
 
-    /// Set the `kd` of a newly constructed PD-controller.
+    /// Set the `kd` of a newly constructed `PdController`.
     #[must_use]
     pub fn with_kd(mut self, kd: T) -> Self {
         self.gains.kd = kd;
@@ -89,7 +90,7 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PdController<T> {
 }
 
 impl<T: FloatCore + AddAssign> PdController<T> {
-    /// PID update.
+    /// PD-controller update.
     /// ```
     /// # use pidsk_controller::{PdControllerf32, PdGainsf32};
     /// let dt: f32 = 0.01;
@@ -107,7 +108,7 @@ impl<T: FloatCore + AddAssign> PdController<T> {
         self.update_delta(measurement, measurement - self.measurement_previous, dt)
     }
 
-    /// PID update with `measurement_delta` specified.
+    /// Update with `measurement_delta` specified.
     /// This allows the user to filter `measurement_delta` with a filter of their choice.
     ///
     /// ```
@@ -144,41 +145,46 @@ impl<T: FloatCore + AddAssign> PdController<T> {
     #[inline]
     pub fn update_p(&mut self, measurement: T) -> T {
         self.measurement_previous = measurement;
-
         self.error = self.setpoint - measurement;
 
-        // The P (no D) term
+        // The P (no I, no D) term
         //         P
         self.gains.kp * self.error
     }
 
-    /// Set the setpoint, saving the previous setpoint.
-    pub fn set_setpoint(&mut self, setpoint: T) {
-        self.setpoint = setpoint;
-    }
-
-    /// Return the setpoint.
-    pub fn setpoint(&self) -> T {
-        self.setpoint
-    }
-
-    /// Sets the previous measurement.
-    pub fn set_initial_measurement(&mut self, measurement: T) {
-        self.measurement_previous = measurement;
-    }
-    /// Returns the previous measurement, useful for `Dterm` filtering.
-    pub fn previous_measurement(&self) -> T {
-        self.measurement_previous
-    }
-
-    /// Safely update PID gains on the fly without causing an output bump.
+    /// Safely update gains on the fly without causing an output bump.
     pub fn update_gains(&mut self, new_gains: PdGains<T>) {
         self.set_gains(new_gains);
     }
 }
 
 impl<T: FloatCore> PdController<T> {
-    /// Return the pid gains. The set value of ki is returned, whether integration is turned on or not.
+    /// Set the setpoint.
+    #[inline]
+    pub fn set_setpoint(&mut self, setpoint: T) {
+        self.setpoint = setpoint;
+    }
+
+    /// Return the setpoint.
+    #[inline]
+    pub fn setpoint(&self) -> T {
+        self.setpoint
+    }
+
+    /// Sets the previous measurement.
+    #[inline]
+    pub fn set_initial_measurement(&mut self, measurement: T) {
+        self.measurement_previous = measurement;
+    }
+
+    /// Returns the previous measurement, useful for `Dterm` filtering.
+    #[inline]
+    pub fn previous_measurement(&self) -> T {
+        self.measurement_previous
+    }
+
+    /// Return the gains.
+    #[inline]
     pub fn gains(&self) -> PdGains<T> {
         PdGains {
             kp: self.gains.kp,
@@ -186,7 +192,8 @@ impl<T: FloatCore> PdController<T> {
         }
     }
 
-    /// Set the PID gains, setting `error_integral` to zero if `ki` is zero.
+    /// Set the gains.
+    #[inline]
     pub fn set_gains(&mut self, gains: PdGains<T>) {
         self.gains = gains;
     }
@@ -204,35 +211,9 @@ impl<T: FloatCore + Default> From<PdGains<T>> for PdController<T> {
     }
 }
 
-/// P, I, D, S, and K errors as calculated by PID controller.<br><br>
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-#[allow(missing_docs)]
-pub struct PdErrors<T> {
-    pub p: T,
-    pub d: T,
-}
-
-#[cfg(feature = "storage")]
-impl<T> PostcardValue<'_> for PdErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
-
-impl<T: FloatCore> Default for PdErrors<T> {
-    fn default() -> Self {
-        Self::new(T::zero(), T::zero())
-    }
-}
-
-impl<T: FloatCore> PdErrors<T> {
-    /// Constructor.
-    #[allow(clippy::many_single_char_names)]
-    pub const fn new(p: T, d: T) -> Self {
-        Self { p, d }
-    }
-}
-
 /// Accessor functions to obtain error values.
 impl<T: FloatCore> PdController<T> {
-    /// Returns the PID errors, multiplied by the PID gains.
+    /// Returns the errors multiplied by the gains.
     pub fn error(&self) -> PdErrors<T> {
         PdErrors {
             p: self.error * self.gains.kp,
@@ -240,7 +221,7 @@ impl<T: FloatCore> PdController<T> {
         }
     }
 
-    /// Returns the raw values of the PID errors, ie NOT multiplied by the PID gains.
+    /// Returns the raw values of the errors, ie NOT multiplied by the gains.
     pub fn error_raw(&self) -> PdErrors<T> {
         PdErrors {
             p: self.error,
@@ -266,5 +247,25 @@ impl<T: FloatCore> PdController<T> {
         self.setpoint = T::zero();
         self.error = T::zero();
         self.error_derivative = T::zero();
+    }
+}
+
+#[cfg(test)]
+mod test_traits {
+    use super::*;
+
+    fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    #[cfg(feature = "serde")]
+    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    #[cfg(feature = "storage")]
+    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+
+    #[test]
+    fn normal_types() {
+        is_full::<PdControllerf32>();
+        #[cfg(feature = "serde")]
+        is_serde::<PdControllerf32>();
+        #[cfg(feature = "storage")]
+        is_storage::<PdControllerf32>();
     }
 }

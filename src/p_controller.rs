@@ -1,7 +1,7 @@
 use core::ops::AddAssign;
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
-use crate::PGains;
+use crate::{PErrors, PGains};
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -11,13 +11,14 @@ use {
     serde::{Deserialize, Serialize},
 };
 
-/// P-controller using `f32` values.
+/// `PController` using `f32` values.
 pub type PControllerf32 = PController<f32>;
 
-/// P-controller using `f64` values.
+/// `PController` using `f64` values.
 pub type PControllerf64 = PController<f64>;
 
 /// Pure P-controller.
+/// `PControllerf32` and `PControllerf64` aliases are available.<br>
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 pub struct PController<T> {
@@ -57,14 +58,15 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PController<T> {
             error: T::ZERO,
         }
     }
-    /// Set the gains of a newly constructed P-controller.
+
+    /// Set the gains of a newly constructed `PController`.
     #[must_use]
     pub fn with_gains(mut self, gains: PGains<T>) -> Self {
         self.set_gains(gains);
         self
     }
 
-    /// Set the `kp` of a newly constructed P-controller.
+    /// Set the `kp` of a newly constructed `PController`.
     #[must_use]
     pub fn with_kp(mut self, kp: T) -> Self {
         self.gains.kp = kp;
@@ -92,16 +94,6 @@ impl<T: FloatCore + AddAssign> PController<T> {
         self.gains.kp * self.error
     }
 
-    /// Set the setpoint.
-    pub fn set_setpoint(&mut self, setpoint: T) {
-        self.setpoint = setpoint;
-    }
-
-    /// Return the setpoint.
-    pub fn setpoint(&self) -> T {
-        self.setpoint
-    }
-
     /// Safely update gains on the fly without causing an output bump.
     pub fn update_gains(&mut self, new_gains: PGains<T>) {
         self.set_gains(new_gains);
@@ -109,12 +101,26 @@ impl<T: FloatCore + AddAssign> PController<T> {
 }
 
 impl<T: FloatCore> PController<T> {
+    /// Set the setpoint.
+    #[inline]
+    pub fn set_setpoint(&mut self, setpoint: T) {
+        self.setpoint = setpoint;
+    }
+
+    /// Return the setpoint.
+    #[inline]
+    pub fn setpoint(&self) -> T {
+        self.setpoint
+    }
+
     /// Return the gains.
+    #[inline]
     pub fn gains(&self) -> PGains<T> {
         PGains { kp: self.gains.kp }
     }
 
     /// Set the gains.
+    #[inline]
     pub fn set_gains(&mut self, gains: PGains<T>) {
         self.gains = gains;
     }
@@ -130,41 +136,16 @@ impl<T: FloatCore + Default> From<PGains<T>> for PController<T> {
     }
 }
 
-/// P error as calculated by P-controller.<br><br>
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-#[allow(missing_docs)]
-pub struct PErrors<T> {
-    pub p: T,
-}
-
-#[cfg(feature = "storage")]
-impl<T> PostcardValue<'_> for PErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
-
-impl<T: FloatCore> Default for PErrors<T> {
-    fn default() -> Self {
-        Self::new(T::zero())
-    }
-}
-
-impl<T: FloatCore> PErrors<T> {
-    /// Constructor.
-    #[allow(clippy::many_single_char_names)]
-    pub const fn new(p: T) -> Self {
-        Self { p }
-    }
-}
-
 /// Accessor functions to obtain error values.
 impl<T: FloatCore> PController<T> {
-    /// Returns the PID errors, multiplied by the PID gains.
+    /// Returns the error multiplied by the gain.
     pub fn error(&self) -> PErrors<T> {
         PErrors {
             p: self.error * self.gains.kp,
         }
     }
 
-    /// Returns the raw values of the P-errors, ie NOT multiplied by the P-gain.
+    /// Returns the raw values of the error, ie NOT multiplied by the gain.
     pub fn error_raw(&self) -> PErrors<T> {
         PErrors { p: self.error }
     }
@@ -183,5 +164,25 @@ impl<T: FloatCore> PController<T> {
     pub fn reset_all(&mut self) {
         self.setpoint = T::zero();
         self.error = T::zero();
+    }
+}
+
+#[cfg(test)]
+mod test_traits {
+    use super::*;
+
+    fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    #[cfg(feature = "serde")]
+    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    #[cfg(feature = "storage")]
+    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+
+    #[test]
+    fn normal_types() {
+        is_full::<PControllerf32>();
+        #[cfg(feature = "serde")]
+        is_serde::<PControllerf32>();
+        #[cfg(feature = "storage")]
+        is_storage::<PControllerf32>();
     }
 }

@@ -13,7 +13,7 @@ pub type PidErrorsf32 = PidErrors<f32>;
 /// `PidErrors` using `f64` values.
 pub type PidErrorsf64 = PidErrors<f64>;
 
-/// P, I, D, S, and K errors as calculated by PID controller.<br><br>
+/// P, I, and D errors as calculated by PID controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 #[allow(missing_docs)]

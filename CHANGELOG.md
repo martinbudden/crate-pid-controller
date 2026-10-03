@@ -9,7 +9,7 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
-## [0.1.11] - 2026-10-xx
+## [0.1.11] - 2026-10-03
 
 ### Added
 
@@ -19,9 +19,9 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
-- Renamed `PidController` to `PidskController`.
-- Renamed `PidGains` to `PidskGains`.
-- Renamed `PidErrors` to `PidskErrors`.
+- Renamed old `PidController` to `PidskController`.
+- Renamed old `PidGains` to `PidskGains`.
+- Renamed old `PidErrors` to `PidskErrors`.
 
 ### Removed
 
