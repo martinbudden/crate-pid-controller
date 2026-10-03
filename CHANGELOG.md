@@ -9,6 +9,12 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
+## [0.1.11] - 2026-10-xx
+
+### Removed
+
+- `PidController::setpoint_previous` and `PidController::previous()`.
+
 ## [0.1.10] - 2026-10-01
 
 ### Added

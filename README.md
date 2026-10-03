@@ -16,7 +16,7 @@ This crate is `no_std`, `no alloc`, and the Minimum Supported Rust Version (MSRV
 - **Variable loop timing** by supplying `dt` to `update()`.
 - **Integral anti-windup** using integral limits, output saturation, or both.
 - **User-controlled D-term filtering** through `update_delta()`.
-- **Dynamic PID control**, including runtime gain changes with output jump mitigation.
+- **Dynamic PID control**, including runtime gain changes with no output jump.
 - **Runtime integration control**, allowing the I-term to be switched on or off.
 - **Custom I-term error** through `update_delta_iterm()`, allowing I-term relaxation.
 - **Access to individual PID terms** for logging, tuning, telemetry, and testing.
@@ -155,7 +155,15 @@ let mut pid_controller = PidControllerf32::new()
    .with_kd(0.05)
    .with_integral_limits(50.0, -50.0);
 
-// or
+// or with asymmetric limits:
+
+let mut pid_controller = PidControllerf32::new()
+   .with_kp(2.0)
+   .with_ki(0.1)
+   .with_kd(0.05)
+   .with_integral_limits(50.0, 0.0);
+
+// or with output saturation
 
 let mut pid_controller = PidControllerf32::new()
    .with_kp(2.0)
@@ -364,7 +372,12 @@ The controller provides several reset operations.
 
 ## Examples
 
-See the [`examples`](examples/).
+See:
+
+- [`examples`](examples/).
+- [motor-mixers](https://crates.io/crates/motor-mixers): uses `PidControllerf32` to implement a Dynamic Idle Controller
+  to ensure the motors do not go below their minimum allowed RPM.
+- [Protoflight](https://crates.io/crates/protoflight): uses `PidControllerf32` in its flight controller stabilization code.
 
 ## API documentation
 

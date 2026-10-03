@@ -548,8 +548,6 @@ mod tests {
         pid.reset_all();
         error = pid.error();
         assert_eq!(0.0, pid.setpoint());
-        assert_eq!(0.0, pid.previous_setpoint());
-        assert_eq!(0.0, pid.setpoint_delta());
         assert_eq!(0.0, pid.previous_error());
         assert_eq!(0.0, pid.previous_measurement());
         assert_eq!(0.0, error.p);

@@ -35,7 +35,6 @@ pub struct PidController<T> {
     measurement_previous: T,
 
     setpoint: T,
-    setpoint_previous: T,
     setpoint_derivative: T,
 
     error: T,
@@ -72,13 +71,13 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
             ki_saved: T::ZERO,
             measurement_previous: T::ZERO,
             setpoint: T::ZERO,
-            setpoint_previous: T::ZERO,
             setpoint_derivative: T::ZERO,
             error: T::ZERO,
             error_integral: T::ZERO,
             error_derivative: T::ZERO,
         }
     }
+
     /// Set the gains of a newly constructed PID controller.
     #[must_use]
     pub fn with_gains(mut self, gains: PidGains<T>) -> Self {
@@ -99,24 +98,28 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
         self.gains.ki = ki;
         self
     }
+
     /// Set the `kd` of a newly constructed PID controller.
     #[must_use]
     pub fn with_kd(mut self, kd: T) -> Self {
         self.gains.kd = kd;
         self
     }
+
     /// Set the `ks` of a newly constructed PID controller.
     #[must_use]
     pub fn with_ks(mut self, ks: T) -> Self {
         self.gains.ks = ks;
         self
     }
+
     /// Set the `kk` of a newly constructed PID controller.
     #[must_use]
     pub fn with_kk(mut self, kk: T) -> Self {
         self.gains.kk = kk;
         self
     }
+
     /// Set the limits of a newly constructed PID controller.
     #[must_use]
     pub fn with_limits(mut self, limits: PidLimits<T>) -> Self {
@@ -131,6 +134,7 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
         self.limits.integral_min = Some(integral_min);
         self
     }
+
     /// Set the output saturation value of a newly constructed PID controller.
     #[must_use]
     pub fn with_output_saturation(mut self, output_saturation: T) -> Self {
@@ -314,7 +318,6 @@ impl<T: FloatCore + AddAssign> PidController<T> {
 
     /// Set the setpoint, saving the previous setpoint.
     pub fn set_setpoint(&mut self, setpoint: T) {
-        self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
     }
 
@@ -326,24 +329,13 @@ impl<T: FloatCore + AddAssign> PidController<T> {
     /// Set the setpoint and calculate the setpoint derivative.
     pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: T) {
         debug_assert!(dt != T::zero());
-        self.setpoint_previous = self.setpoint;
+        self.setpoint_derivative = (setpoint - self.setpoint) / dt;
         self.setpoint = setpoint;
-        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;
     }
 
     /// Return the setpoint.
     pub fn setpoint(&self) -> T {
         self.setpoint
-    }
-
-    /// Returns the previous setpoint.
-    pub fn previous_setpoint(&self) -> T {
-        self.setpoint_previous
-    }
-
-    /// Returns the difference between the setpoint and the previous setpoint.
-    pub fn setpoint_delta(&self) -> T {
-        self.setpoint - self.setpoint_previous
     }
 
     /// Sets the previous measurement.
@@ -448,7 +440,6 @@ impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
             ki_saved: pid.ki,
             measurement_previous: T::default(),
             setpoint: T::default(),
-            setpoint_previous: T::default(),
             setpoint_derivative: T::default(),
             error_derivative: T::default(),
             error_integral: T::default(),
@@ -550,7 +541,6 @@ impl<T: FloatCore> PidController<T> {
     /// Clears historical record to allow bumpless transfer.
     pub fn reset(&mut self) {
         self.measurement_previous = self.setpoint;
-        self.setpoint_previous = self.setpoint;
         self.setpoint_derivative = T::zero();
         self.error = T::zero();
         self.error_integral = T::zero();
@@ -561,7 +551,6 @@ impl<T: FloatCore> PidController<T> {
     pub fn reset_all(&mut self) {
         self.measurement_previous = T::zero();
         self.setpoint = T::zero();
-        self.setpoint_previous = T::zero();
         self.setpoint_derivative = T::zero();
         self.error = T::zero();
         self.error_integral = T::zero();
