@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
+        "amsmath",
+        "amssymb",
         "astextplain",
         "autocfg",
         "Betaflight",
@@ -12,8 +14,10 @@
         "Controllerf",
         "deadband",
         "debuginfo",
+        "documentclass",
         "Dterm",
         "dtolnay",
+        "dvisvgm",
         "eabihf",
         "Errorsf",
         "feedforward",
@@ -26,6 +30,7 @@
         "libm",
         "Limitsf",
         "msrv",
+        "nonstopmode",
         "openloop",
         "Pidf",
         "pidgeon",
@@ -42,6 +47,7 @@
         "swatinem",
         "thiserror",
         "thumbv",
+        "usepackage",
         "xtask"
     ]
 }

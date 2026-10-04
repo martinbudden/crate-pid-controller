@@ -1,4 +1,7 @@
 /target
+docs/equations/*.aux
+docs/equations/*.dvi
+docs/equations/*.log
 examples/target
 xtask/target
 notes/*

@@ -48,9 +48,7 @@ output =
 
 Or, expressed mathematically,:
 
-```math
-C(t) = K_p \cdot e(t) + K_i \cdot \int{e(t)dt} - K_d \cdot \frac{dP(t)}{dt} + K_s \cdot S(t) + K_k \cdot \frac{dS(t)}{dt}
-```
+![PID equation](https://raw.githubusercontent.com/martinbudden/crate-pid-controller/main/docs/equations/pidsk.svg)
 
 Where:
 

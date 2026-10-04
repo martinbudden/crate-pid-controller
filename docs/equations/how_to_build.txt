@@ -1,0 +1,4 @@
+To build pid.svg use:
+
+latex -interaction=nonstopmode pidsk.tex
+dvisvgm --no-fonts pidsk.dvi -o pidsk.svg
