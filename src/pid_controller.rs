@@ -33,6 +33,7 @@ pub struct PidController<T> {
     measurement_previous: T,
 
     setpoint: T,
+    setpoint_previous: T,
     setpoint_derivative: T,
 
     error: T,
@@ -69,6 +70,7 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
             ki_saved: T::ZERO,
             measurement_previous: T::ZERO,
             setpoint: T::ZERO,
+            setpoint_previous: T::ZERO,
             setpoint_derivative: T::ZERO,
             error: T::ZERO,
             error_integral: T::ZERO,
@@ -297,6 +299,7 @@ impl<T: FloatCore> PidController<T> {
     /// Set the setpoint, saving the previous setpoint.
     #[inline]
     pub fn set_setpoint(&mut self, setpoint: T) {
+        self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
     }
 
@@ -310,14 +313,25 @@ impl<T: FloatCore> PidController<T> {
     #[inline]
     pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: T) {
         debug_assert!(dt != T::zero());
-        self.setpoint_derivative = (setpoint - self.setpoint) / dt;
+        self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
+        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;
     }
 
     /// Return the setpoint.
     #[inline]
     pub fn setpoint(&self) -> T {
         self.setpoint
+    }
+
+    /// Returns the previous setpoint.
+    pub fn previous_setpoint(&self) -> T {
+        self.setpoint_previous
+    }
+
+    /// Returns the difference between the setpoint and the previous setpoint.
+    pub fn setpoint_delta(&self) -> T {
+        self.setpoint - self.setpoint_previous
     }
 
     /// Sets the previous measurement.
@@ -353,6 +367,7 @@ impl<T: FloatCore> PidController<T> {
             self.error_integral = T::zero();
         }
     }
+
     /// Set the `kp` gain.
     #[inline]
     pub fn set_kp(&mut self, kp: T) {
@@ -394,6 +409,7 @@ impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
             ki_saved: pid.ki,
             measurement_previous: T::default(),
             setpoint: T::default(),
+            setpoint_previous: T::default(),
             setpoint_derivative: T::default(),
             error_derivative: T::default(),
             error_integral: T::default(),
