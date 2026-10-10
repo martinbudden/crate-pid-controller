@@ -197,6 +197,18 @@ impl<T: FloatCore> PdController<T> {
     pub fn set_gains(&mut self, gains: PdGains<T>) {
         self.gains = gains;
     }
+
+    /// Set the `kp` gain.
+    #[inline]
+    pub fn set_kp(&mut self, kp: T) {
+        self.gains.kp = kp;
+    }
+
+    /// Set the `kd` gain.
+    #[inline]
+    pub fn set_kd(&mut self, kd: T) {
+        self.gains.kd = kd;
+    }
 }
 
 impl<T: FloatCore + Default> From<PdGains<T>> for PdController<T> {

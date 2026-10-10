@@ -353,6 +353,29 @@ impl<T: FloatCore> PidController<T> {
             self.error_integral = T::zero();
         }
     }
+    /// Set the `kp` gain.
+    #[inline]
+    pub fn set_kp(&mut self, kp: T) {
+        self.gains.kp = kp;
+    }
+
+    /// Set the `ki` gain, setting `error_integral` to zero if `ki` is zero.
+    #[inline]
+    pub fn set_ki(&mut self, ki: T) {
+        self.gains.ki = ki;
+        self.ki_saved = self.gains.ki;
+        if self.gains.ki.abs() <= T::epsilon() {
+            // If the new Ki is zero, the integral term cannot contribute to the output.
+            // Clear the accumulator to prevent massive hidden windup if Ki is re-enabled later.
+            self.error_integral = T::zero();
+        }
+    }
+
+    /// Set the `kd` gain.
+    #[inline]
+    pub fn set_kd(&mut self, kd: T) {
+        self.gains.kd = kd;
+    }
 }
 
 impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {

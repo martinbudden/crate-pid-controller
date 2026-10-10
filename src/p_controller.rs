@@ -124,6 +124,12 @@ impl<T: FloatCore> PController<T> {
     pub fn set_gains(&mut self, gains: PGains<T>) {
         self.gains = gains;
     }
+
+    /// Set the `kp` gain.
+    #[inline]
+    pub fn set_kp(&mut self, kp: T) {
+        self.gains.kp = kp;
+    }
 }
 
 impl<T: FloatCore + Default> From<PGains<T>> for PController<T> {
