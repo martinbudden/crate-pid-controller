@@ -9,11 +9,13 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
-## [0.1.12] - 2026-10-xx
+## [0.1.12] - 2026-10-23
 
 ### Added
 
 - Added back `PidController::setpoint_previous` and `PidController::previous()`.
+- functions to set individual gains.
+- Updated to `signal-filters` `0.1.15`.
 
 ### Changed
 
