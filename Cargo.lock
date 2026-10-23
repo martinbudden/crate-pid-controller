@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "pidsk-controller"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "approx",
  "num-traits",
@@ -230,14 +230,14 @@ checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.7",
+ "syn 3.0.9",
 ]
 
 [[package]]
 name = "signal-filters"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16d5624443f123588dc452e0605f9a31edd2552b7f11a7db0275ccd48ff82713"
+checksum = "c40ab66ecda98d309442d39094f9925a7476dac3710f3a579fdbd0341f89625a"
 dependencies = [
  "libm",
  "num-traits",
@@ -273,9 +273,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "3.0.7"
+version = "3.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d62a2e0561533f2ca2561d0cf27fd9fedb640a1bf2616ff5d5c80d99017faadc"
+checksum = "d78c8dee4c7bf0e14673097256fed6142ce9d3b85a408189d07482442145823b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -299,20 +299,20 @@ checksum = "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.7",
+ "syn 3.0.9",
 ]
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
+checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
 name = "vqm"
-version = "0.1.17"
+version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5635fd84ee903284b4b6a451835b66ba0ccdb9ecd5b14958f061e3face0656f"
+checksum = "065d7d056a3627aeb8ab3dc7abdbd8bc590a1bd13ef20b1792217b131683147b"
 dependencies = [
  "libm",
  "num-traits",
