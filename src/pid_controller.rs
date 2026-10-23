@@ -28,7 +28,7 @@ pub type PidControllerf64 = PidController<f64>;
 pub struct PidController<T> {
     gains: PidGains<T>,
     limits: PidLimits<T>,
-    /// saved value of pid.ki, so integration can be switched on and off.
+    /// saved value of `ki` gain, so integration can be switched on and off.
     ki_saved: T,
     measurement_previous: T,
 

@@ -5,7 +5,7 @@ including: variable loop timing, integral anti-windup, user-controlled derivativ
 
 The controller is available for both `f32` and `f64`.
 
-This crate is `no_std`, `no alloc`, and the Minimum Supported Rust Version (MSRV) is `Rust 1.89`.
+This crate is `no_std`, `no alloc`, `no panic`, `no unwrap`, `no expect`, and the Minimum Supported Rust Version (MSRV) is `Rust 1.89`.
 
 ## Features
 
@@ -30,7 +30,7 @@ For cases where the full functionality of a `PidskController` is required, parti
 - `PdController` - a PD-controller.
 - `PidController` - a traditional PID controller, ie a `PidskController` without the S-term and K-term.
 
-These forms are particularly useful for implementing Dual-Ring Cascaded PID Loops, where, because of the cascade,
+These forms are useful for implementing Dual-Ring Cascaded PID Loops, where, because of the cascade,
 some of the gains are redundant.
 
 ## Controller formulation
@@ -119,8 +119,20 @@ The crate provides `f32` and `f64` variants of the main controller types:
 3. `PidskErrorsf32`, `PidskErrorsf64`
 4. `PidLimitsf32`, `PidLimitsf64`
 
+And for the partial forms:
+
+1. `PidControllerf32`, `PidControllerf64`
+2. `PidGainsf32`, `PidGainsf64`
+3. `PidErrorsf32`, `PidErrorsf64`
+4. `PControllerf32`, `PControllerf64`
+5. `PGainsf32`, `PGainsf64`
+6. `PErrorsf32`, `PErrorsf64`
+7. `PdControllerf32`, `PdControllerf64`
+8. `PdGainsf32`, `PdGainsf64`
+9. `PdErrorsf32`, `PdErrorsf64`
+
 These are type aliases for the corresponding generic types.
-So `PidskControllerf32` is an alias for `PidskController<f32>`, but that is transparent to the user.
+So `PidskControllerf32` is an alias for `PidskController<f32>`, etc, but that is transparent to the user.
 
 ## Setpoint control
 
@@ -337,9 +349,6 @@ use `update_sp` for optimized calculation on the Yaw axis.
 
 **Thermostat**: use `update` for simplicity. Use `ks`, `kp` and `ki` for some openloop control. `kd` and `kk` are set to zero.
 
-**Aircraft altitude hold**: use a Dual-Ring cascaded PID Loop. The outer (altitude) loop is a pure P-controller, so used `update_p`.
-The inner (vertical speed) loop is a PID-controller, so use `update`.
-
 ## Inspecting PID terms
 
 The current PID terms can be obtained using:
@@ -402,7 +411,7 @@ For the complete API, see the documentation on [docs.rs](https://docs.rs/pidsk-c
 
 Licensed under either of:
 
-- [Apache License, Version 2.0](LICENSE-APACHE)
-- [MIT License](LICENSE-MIT)
+- Apache License, Version 2.0, see: [LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>
+- MIT license, see: [LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>
 
 at your option.
