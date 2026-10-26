@@ -127,7 +127,7 @@ dependencies = [
  "sequential-storage",
  "serde",
  "signal-filters",
- "vqm 0.1.18 (git+https://github.com/martinbudden/crate-vector-quaternion-matrix)",
+ "vqm",
 ]
 
 [[package]]
@@ -237,13 +237,12 @@ dependencies = [
 [[package]]
 name = "signal-filters"
 version = "0.1.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c40ab66ecda98d309442d39094f9925a7476dac3710f3a579fdbd0341f89625a"
+source = "git+https://github.com/martinbudden/crate-signal-filters#b10b44e01b5e10cb94e1d321326e18a2ec3fc389"
 dependencies = [
  "libm",
  "num-traits",
  "rustc_version",
- "vqm 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vqm",
 ]
 
 [[package]]
@@ -312,19 +311,9 @@ checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 [[package]]
 name = "vqm"
 version = "0.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065d7d056a3627aeb8ab3dc7abdbd8bc590a1bd13ef20b1792217b131683147b"
+source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#101d0bc4fdad494c8c003b491b7128552464c3a0"
 dependencies = [
  "libm",
- "num-traits",
- "rustc_version",
-]
-
-[[package]]
-name = "vqm"
-version = "0.1.18"
-source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#0d3dba33c612dfcf9cbd033880a294be3162bee9"
-dependencies = [
  "num-traits",
  "postcard",
  "rustc_version",

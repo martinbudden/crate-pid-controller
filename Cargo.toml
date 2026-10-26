@@ -22,7 +22,7 @@ rustc_version = "0.4.1"
 [features]
 #default =[]
 #default =["vqm"]
-default = ["serde","storage"]
+#default = ["serde","storage"]
 
 # vqm/serde means: Enable vqm, and also enable vqm's serde feature. 
 # (This forces vqm to turn on, which breaks its optional nature in the serde feature context).
@@ -42,8 +42,8 @@ vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix", 
 
 [dev-dependencies]
 approx = { version = "0.5.1", default-features = false }
-signal-filters = { version = "0.1.15" }
-#signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
+#signal-filters = { version = "0.1.15" }
+signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]

@@ -210,12 +210,36 @@ where
     /// 1. filter `measurement_delta` with a filter of their choice.
     /// 2. dynamically alter the Iterm.
     ///
+    #[inline]
     pub fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, dt: R) -> T {
+        let error = self.setpoint - measurement;
+        self.update_delta_error_iterm(measurement, measurement_delta, error, iterm_error, dt)
+    }
+
+    /// PID update with `measurement_delta` and `error` specified.
+    /// This allows the user to:
+    /// 1. filter `measurement_delta` with a filter of their choice.
+    /// 2. calculate the `error` themselves.
+    ///
+    #[inline]
+    pub fn update_delta_error(&mut self, measurement: T, measurement_delta: T, error: T, dt: R) -> T {
+        self.update_delta_error_iterm(measurement, measurement_delta, error, error, dt)
+    }
+
+    /// PID update with `measurement_delta`, `error`, and `iterm_error` specified.
+    pub fn update_delta_error_iterm(
+        &mut self,
+        measurement: T,
+        measurement_delta: T,
+        error: T,
+        iterm_error: T,
+        dt: R,
+    ) -> T {
         debug_assert!(dt != R::ZERO);
 
         self.measurement_previous = measurement;
 
-        self.error = self.setpoint - measurement;
+        self.error = error;
         self.error_derivative = -measurement_delta / dt; // note minus sign, error delta has reverse polarity to measurement delta
 
         // Perform Euler integration
