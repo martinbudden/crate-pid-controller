@@ -1,5 +1,5 @@
-use core::ops::AddAssign;
-use num_traits::{ConstOne, ConstZero, float::FloatCore};
+use core::ops::{AddAssign, Div, Mul, Neg, Sub};
+use num_traits::{ConstOne, ConstZero, Zero, float::FloatCore};
 
 use crate::{PidErrors, PidGains, PidLimits};
 
@@ -53,14 +53,14 @@ impl<T> PostcardValue<'_> for PidController<T> where T: Serialize + MaxSize + fo
 ///
 /// assert_eq!(1.0, pid.gains().kp);
 /// ```
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> Default for PidController<T> {
+impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> Default for PidController<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
+impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> PidController<T> {
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
@@ -137,7 +137,10 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PidController<T> {
     }
 }
 
-impl<T: FloatCore + AddAssign> PidController<T> {
+impl<T> PidController<T>
+where
+    T: FloatCore + ConstZero + AddAssign,
+{
     /// PID-controller update.
     /// ```
     /// # use pidsk_controller::{PidControllerf32, PidGainsf32};
@@ -259,7 +262,7 @@ impl<T: FloatCore + AddAssign> PidController<T> {
     #[inline]
     pub fn switch_integration_on(&mut self) {
         self.gains.ki = self.ki_saved;
-        self.error_integral = T::zero();
+        self.error_integral = T::ZERO;
     }
 
     /// Safely update gains on the fly without causing an output bump.
@@ -270,7 +273,7 @@ impl<T: FloatCore + AddAssign> PidController<T> {
 
         // Commit the new gains to the struct
         self.set_gains(new_gains);
-        if self.error_integral == T::zero() {
+        if self.error_integral == T::ZERO {
             return;
         }
 
@@ -295,7 +298,10 @@ impl<T: FloatCore + AddAssign> PidController<T> {
     }
 }
 
-impl<T: FloatCore> PidController<T> {
+impl<T> PidController<T>
+where
+    T: Copy + ConstZero + Sub<T, Output = T> + PartialEq,
+{
     /// Set the setpoint, saving the previous setpoint.
     #[inline]
     pub fn set_setpoint(&mut self, setpoint: T) {
@@ -307,15 +313,6 @@ impl<T: FloatCore> PidController<T> {
     #[inline]
     pub fn set_setpoint_derivative(&mut self, setpoint_derivative: T) {
         self.setpoint_derivative = setpoint_derivative;
-    }
-
-    /// Set the setpoint and calculate the setpoint derivative.
-    #[inline]
-    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: T) {
-        debug_assert!(dt != T::zero());
-        self.setpoint_previous = self.setpoint;
-        self.setpoint = setpoint;
-        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;
     }
 
     /// Return the setpoint.
@@ -356,34 +353,10 @@ impl<T: FloatCore> PidController<T> {
         }
     }
 
-    /// Set the gains, setting `error_integral` to zero if `ki` is zero.
-    #[inline]
-    pub fn set_gains(&mut self, gains: PidGains<T>) {
-        self.gains = gains;
-        self.ki_saved = self.gains.ki;
-        if self.gains.ki.abs() <= T::epsilon() {
-            // If the new Ki is zero, the integral term cannot contribute to the output.
-            // Clear the accumulator to prevent massive hidden windup if Ki is re-enabled later.
-            self.error_integral = T::zero();
-        }
-    }
-
     /// Set the `kp` gain.
     #[inline]
     pub fn set_kp(&mut self, kp: T) {
         self.gains.kp = kp;
-    }
-
-    /// Set the `ki` gain, setting `error_integral` to zero if `ki` is zero.
-    #[inline]
-    pub fn set_ki(&mut self, ki: T) {
-        self.gains.ki = ki;
-        self.ki_saved = self.gains.ki;
-        if self.gains.ki.abs() <= T::epsilon() {
-            // If the new Ki is zero, the integral term cannot contribute to the output.
-            // Clear the accumulator to prevent massive hidden windup if Ki is re-enabled later.
-            self.error_integral = T::zero();
-        }
     }
 
     /// Set the `kd` gain.
@@ -393,7 +366,46 @@ impl<T: FloatCore> PidController<T> {
     }
 }
 
-impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
+/*impl<T> PidController<T>
+where T: Copy + ConstZero  + Sub<T, Output = T> + PartialEq
+{
+    /// Set the setpoint and calculate the setpoint derivative.
+    #[inline]
+    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: T) {
+        debug_assert!(dt != T::ZERO);
+        self.setpoint_previous = self.setpoint;
+        self.setpoint = setpoint;
+        self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;
+    }
+}*/
+
+impl<T: Copy + PartialEq + Zero> PidController<T> {
+    /// Set the gains, setting `error_integral` to zero if `ki` is zero.
+    #[inline]
+    pub fn set_gains(&mut self, gains: PidGains<T>) {
+        self.gains = gains;
+        self.ki_saved = self.gains.ki;
+        if self.gains.ki == T::zero() {
+            // If the new Ki is zero, the integral term cannot contribute to the output.
+            // Clear the accumulator to prevent massive hidden windup if Ki is re-enabled later.
+            self.error_integral = T::zero();
+        }
+    }
+
+    /// Set the `ki` gain, setting `error_integral` to zero if `ki` is zero.
+    #[inline]
+    pub fn set_ki(&mut self, ki: T) {
+        self.gains.ki = ki;
+        self.ki_saved = self.gains.ki;
+        if self.gains.ki == T::zero() {
+            // If the new Ki is zero, the integral term cannot contribute to the output.
+            // Clear the accumulator to prevent massive hidden windup if Ki is re-enabled later.
+            self.error_integral = T::zero();
+        }
+    }
+}
+
+impl<T: Copy + Default> From<PidGains<T>> for PidController<T> {
     fn from(pid: PidGains<T>) -> Self {
         Self {
             gains: PidGains {
@@ -419,7 +431,7 @@ impl<T: FloatCore + Default> From<PidGains<T>> for PidController<T> {
 }
 
 #[allow(missing_docs)]
-impl<T: FloatCore> PidController<T> {
+impl<T: Copy + Neg<Output = T>> PidController<T> {
     pub fn limits(&self) -> PidLimits<T> {
         self.limits
     }
@@ -447,7 +459,10 @@ impl<T: FloatCore> PidController<T> {
 }
 
 /// Accessor functions to obtain error values.
-impl<T: FloatCore> PidController<T> {
+impl<T> PidController<T>
+where
+    T: Copy + ConstZero + Mul<Output = T> + Div<Output = T> + PartialEq,
+{
     /// Returns the errors, multiplied by the gains.
     pub fn error(&self) -> PidErrors<T> {
         PidErrors {
@@ -461,8 +476,8 @@ impl<T: FloatCore> PidController<T> {
     pub fn error_raw(&self) -> PidErrors<T> {
         PidErrors {
             p: self.error,
-            i: if self.gains.ki == T::zero() {
-                T::zero()
+            i: if self.gains.ki == T::ZERO {
+                T::ZERO
             } else {
                 self.error_integral / self.gains.ki
             },
@@ -478,20 +493,20 @@ impl<T: FloatCore> PidController<T> {
     /// Clears historical record to allow bumpless transfer.
     pub fn reset(&mut self) {
         self.measurement_previous = self.setpoint;
-        self.setpoint_derivative = T::zero();
-        self.error = T::zero();
-        self.error_integral = T::zero();
-        self.error_derivative = T::zero();
+        self.setpoint_derivative = T::ZERO;
+        self.error = T::ZERO;
+        self.error_integral = T::ZERO;
+        self.error_derivative = T::ZERO;
     }
 
     /// Reset all, for test code.
     pub fn reset_all(&mut self) {
-        self.measurement_previous = T::zero();
-        self.setpoint = T::zero();
-        self.setpoint_derivative = T::zero();
-        self.error = T::zero();
-        self.error_integral = T::zero();
-        self.error_derivative = T::zero();
+        self.measurement_previous = T::ZERO;
+        self.setpoint = T::ZERO;
+        self.setpoint_derivative = T::ZERO;
+        self.error = T::ZERO;
+        self.error_integral = T::ZERO;
+        self.error_derivative = T::ZERO;
     }
 }
 

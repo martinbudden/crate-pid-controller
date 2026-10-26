@@ -1,4 +1,4 @@
-use num_traits::{ConstZero, float::FloatCore};
+use num_traits::ConstZero;
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -28,13 +28,13 @@ pub struct PidLimits<T> {
 #[cfg(feature = "storage")]
 impl<T> PostcardValue<'_> for PidLimits<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
-impl<T: FloatCore + ConstZero> Default for PidLimits<T> {
+impl<T: ConstZero> Default for PidLimits<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: FloatCore + ConstZero> PidLimits<T> {
+impl<T: ConstZero> PidLimits<T> {
     #[must_use]
     /// Constructor.
     pub const fn new() -> Self {

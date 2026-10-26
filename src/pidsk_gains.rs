@@ -1,4 +1,4 @@
-use num_traits::{ConstOne, ConstZero, float::FloatCore};
+use num_traits::{ConstOne, ConstZero};
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -39,7 +39,7 @@ pub struct PidskGains<T> {
 #[cfg(feature = "storage")]
 impl<T> PostcardValue<'_> for PidskGains<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
-impl<T: FloatCore> Default for PidskGains<T>
+impl<T> Default for PidskGains<T>
 where
     T: ConstOne + ConstZero,
 {
@@ -48,7 +48,7 @@ where
     }
 }
 
-impl<T: FloatCore> PidskGains<T>
+impl<T> PidskGains<T>
 where
     T: ConstOne + ConstZero,
 {

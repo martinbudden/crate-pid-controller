@@ -1,5 +1,5 @@
-use core::ops::AddAssign;
-use num_traits::{ConstOne, ConstZero, float::FloatCore};
+use core::ops::{Mul, Sub};
+use num_traits::{ConstOne, ConstZero};
 
 use crate::{PErrors, PGains};
 
@@ -41,14 +41,14 @@ impl<T> PostcardValue<'_> for PController<T> where T: Serialize + MaxSize + for<
 ///
 /// assert_eq!(1.0, p_controller.gains().kp);
 /// ```
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> Default for PController<T> {
+impl<T: Copy + ConstZero + ConstOne + PartialEq> Default for PController<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PController<T> {
+impl<T: Copy + ConstZero + ConstOne + PartialEq> PController<T> {
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
@@ -74,7 +74,10 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PController<T> {
     }
 }
 
-impl<T: FloatCore + AddAssign> PController<T> {
+impl<T> PController<T>
+where
+    T: Copy + Sub<Output = T> + Mul<Output = T>,
+{
     /// P-controller update.
     /// ```
     /// # use pidsk_controller::{PControllerf32, PGainsf32};
@@ -100,7 +103,10 @@ impl<T: FloatCore + AddAssign> PController<T> {
     }
 }
 
-impl<T: FloatCore> PController<T> {
+impl<T> PController<T>
+where
+    T: Copy,
+{
     /// Set the setpoint.
     #[inline]
     pub fn set_setpoint(&mut self, setpoint: T) {
@@ -132,7 +138,7 @@ impl<T: FloatCore> PController<T> {
     }
 }
 
-impl<T: FloatCore + Default> From<PGains<T>> for PController<T> {
+impl<T: Default> From<PGains<T>> for PController<T> {
     fn from(pid: PGains<T>) -> Self {
         Self {
             gains: PGains { kp: pid.kp },
@@ -143,7 +149,10 @@ impl<T: FloatCore + Default> From<PGains<T>> for PController<T> {
 }
 
 /// Accessor functions to obtain error values.
-impl<T: FloatCore> PController<T> {
+impl<T> PController<T>
+where
+    T: Copy + ConstZero + Mul<Output = T>,
+{
     /// Returns the error multiplied by the gain.
     pub fn error(&self) -> PErrors<T> {
         PErrors {
@@ -163,13 +172,13 @@ impl<T: FloatCore> PController<T> {
 
     /// Clears historical record to allow bumpless transfer.
     pub fn reset(&mut self) {
-        self.error = T::zero();
+        self.error = T::ZERO;
     }
 
     /// Reset all, for test code.
     pub fn reset_all(&mut self) {
-        self.setpoint = T::zero();
-        self.error = T::zero();
+        self.setpoint = T::ZERO;
+        self.error = T::ZERO;
     }
 }
 

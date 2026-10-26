@@ -35,6 +35,9 @@ sequential-storage = { version = "8.0.1", default-features = false, features = [
 approx = { version = "0.5.1", default-features = false }
 signal-filters = { version = "0.1.15" }
 #signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
+#vqm = { version = "0.1.18" }
+#vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix", default-features = false }
+#vqm = { path = "../vqm", default-features = false }
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]

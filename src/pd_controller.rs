@@ -1,4 +1,4 @@
-use core::ops::AddAssign;
+use core::ops::{AddAssign, Mul, Neg, Sub};
 use num_traits::{ConstOne, ConstZero, float::FloatCore};
 
 use crate::{PdErrors, PdGains};
@@ -47,14 +47,14 @@ impl<T> PostcardValue<'_> for PdController<T> where T: Serialize + MaxSize + for
 ///
 /// assert_eq!(1.0, pd_controller.gains().kp);
 /// ```
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> Default for PdController<T> {
+impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> Default for PdController<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PdController<T> {
+impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> PdController<T> {
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
@@ -89,7 +89,10 @@ impl<T: FloatCore + AddAssign + ConstZero + ConstOne> PdController<T> {
     }
 }
 
-impl<T: FloatCore + AddAssign> PdController<T> {
+impl<T> PdController<T>
+where
+    T: FloatCore,
+{
     /// PD-controller update.
     /// ```
     /// # use pidsk_controller::{PdControllerf32, PdGainsf32};
@@ -140,7 +143,12 @@ impl<T: FloatCore + AddAssign> PdController<T> {
         // The PD calculation
         self.gains.kp * self.error + self.gains.kd * self.error_derivative
     }
+}
 
+impl<T> PdController<T>
+where
+    T: Copy + ConstZero + Sub<Output = T> + Mul<Output = T>,
+{
     /// Optimized form of `update` that assumes all gains except `kp` are zero.
     #[inline]
     pub fn update_p(&mut self, measurement: T) -> T {
@@ -158,7 +166,10 @@ impl<T: FloatCore + AddAssign> PdController<T> {
     }
 }
 
-impl<T: FloatCore> PdController<T> {
+impl<T> PdController<T>
+where
+    T: Copy + ConstZero,
+{
     /// Set the setpoint.
     #[inline]
     pub fn set_setpoint(&mut self, setpoint: T) {
@@ -211,7 +222,7 @@ impl<T: FloatCore> PdController<T> {
     }
 }
 
-impl<T: FloatCore + Default> From<PdGains<T>> for PdController<T> {
+impl<T: Default> From<PdGains<T>> for PdController<T> {
     fn from(pid: PdGains<T>) -> Self {
         Self {
             gains: PdGains { kp: pid.kp, kd: pid.kd },
@@ -224,7 +235,10 @@ impl<T: FloatCore + Default> From<PdGains<T>> for PdController<T> {
 }
 
 /// Accessor functions to obtain error values.
-impl<T: FloatCore> PdController<T> {
+impl<T> PdController<T>
+where
+    T: Copy + ConstZero + Mul<Output = T>,
+{
     /// Returns the errors multiplied by the gains.
     pub fn error(&self) -> PdErrors<T> {
         PdErrors {
@@ -249,16 +263,16 @@ impl<T: FloatCore> PdController<T> {
     /// Clears historical record to allow bumpless transfer.
     pub fn reset(&mut self) {
         self.measurement_previous = self.setpoint;
-        self.error = T::zero();
-        self.error_derivative = T::zero();
+        self.error = T::ZERO;
+        self.error_derivative = T::ZERO;
     }
 
     /// Reset all, for test code.
     pub fn reset_all(&mut self) {
-        self.measurement_previous = T::zero();
-        self.setpoint = T::zero();
-        self.error = T::zero();
-        self.error_derivative = T::zero();
+        self.measurement_previous = T::ZERO;
+        self.setpoint = T::ZERO;
+        self.error = T::ZERO;
+        self.error_derivative = T::ZERO;
     }
 }
 

@@ -1,4 +1,4 @@
-use num_traits::float::FloatCore;
+use num_traits::Zero;
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -25,13 +25,13 @@ pub struct PdErrors<T> {
 #[cfg(feature = "storage")]
 impl<T> PostcardValue<'_> for PdErrors<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
-impl<T: FloatCore> Default for PdErrors<T> {
+impl<T: Zero> Default for PdErrors<T> {
     fn default() -> Self {
         Self::new(T::zero(), T::zero())
     }
 }
 
-impl<T: FloatCore> PdErrors<T> {
+impl<T: Zero> PdErrors<T> {
     /// Constructor.
     #[allow(clippy::many_single_char_names)]
     pub const fn new(p: T, d: T) -> Self {
