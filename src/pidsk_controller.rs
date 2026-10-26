@@ -1,7 +1,8 @@
-use core::ops::{AddAssign, Div, Mul, Neg, Sub};
-use num_traits::{ConstOne, ConstZero, Zero, float::FloatCore};
+use core::marker::PhantomData;
+use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
+use num_traits::{ConstOne, ConstZero};
 
-use crate::{PidLimits, PidskErrors, PidskGains};
+use crate::{MinMaxClamp, PidLimits, PidskErrors, PidskGains};
 
 #[cfg(feature = "storage")]
 use sequential_storage::map::PostcardValue;
@@ -12,10 +13,10 @@ use {
 };
 
 /// `PidskController` using `f32` values.
-pub type PidskControllerf32 = PidskController<f32>;
+pub type PidskControllerf32 = PidskController<f32, f32>;
 
 /// `PidskController` using `f64` values.
-pub type PidskControllerf64 = PidskController<f64>;
+pub type PidskControllerf64 = PidskController<f64, f64>;
 
 /// PID controller with open loop control (generic form).<br>
 /// This includes setpoint gain (classical feed forward) and<br>
@@ -28,7 +29,7 @@ pub type PidskControllerf64 = PidskController<f64>;
 ///
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-pub struct PidskController<T> {
+pub struct PidskController<T, R> {
     gains: PidskGains<T>,
     limits: PidLimits<T>,
     /// saved value of `ki` gain, so integration can be switched on and off.
@@ -42,10 +43,11 @@ pub struct PidskController<T> {
     error: T,
     error_integral: T,
     error_derivative: T,
+    _marker: PhantomData<R>,
 }
 
 #[cfg(feature = "storage")]
-impl<T> PostcardValue<'_> for PidskController<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
+impl<T, R> PostcardValue<'_> for PidskController<T, R> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 /// Default `PidskController`.
 /// ```
@@ -56,14 +58,21 @@ impl<T> PostcardValue<'_> for PidskController<T> where T: Serialize + MaxSize + 
 ///
 /// assert_eq!(1.0, pid.gains().kp);
 /// ```
-impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> Default for PidskController<T> {
+impl<T, R> Default for PidskController<T, R>
+where
+    T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>,
+    R: Copy,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> PidskController<T> {
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + ConstZero + ConstOne + PartialEq + Neg<Output = T>,
+{
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
@@ -78,6 +87,7 @@ impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> P
             error: T::ZERO,
             error_integral: T::ZERO,
             error_derivative: T::ZERO,
+            _marker: PhantomData,
         }
     }
 
@@ -154,9 +164,19 @@ impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> P
     }
 }
 
-impl<T> PidskController<T>
+impl<T, R> PidskController<T, R>
 where
-    T: FloatCore + ConstZero + AddAssign,
+    T: Copy
+        + MinMaxClamp
+        + ConstZero
+        + AddAssign
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + Neg<Output = T>
+        + Div<R, Output = T>
+        + Mul<R, Output = T>
+        + PartialEq,
+    R: Copy + ConstZero + PartialEq,
 {
     /// PIDSK-controller update.
     /// ```
@@ -172,7 +192,7 @@ where
     /// assert_eq!(-0.05, output);
     /// ```
     #[inline]
-    pub fn update(&mut self, measurement: T, dt: T) -> T {
+    pub fn update(&mut self, measurement: T, dt: R) -> T {
         self.update_delta(measurement, measurement - self.measurement_previous, dt)
     }
 
@@ -198,7 +218,7 @@ where
     /// assert_eq!(-0.010_000_005, output);
     ///
     #[inline]
-    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, dt: T) -> T {
+    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, dt: R) -> T {
         self.update_delta_iterm(measurement, measurement_delta, self.setpoint - measurement, dt)
     }
 
@@ -207,8 +227,8 @@ where
     /// 1. filter `measurement_delta` with a filter of their choice.
     /// 2. dynamically alter the Iterm.
     ///
-    pub fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, dt: T) -> T {
-        debug_assert!(dt != T::zero());
+    pub fn update_delta_iterm(&mut self, measurement: T, measurement_delta: T, iterm_error: T, dt: R) -> T {
+        debug_assert!(dt != R::ZERO);
 
         self.measurement_previous = measurement;
 
@@ -244,8 +264,8 @@ where
     }
 
     /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `ki` are zero.
-    pub fn update_spi(&mut self, measurement: T, dt: T) -> T {
-        debug_assert!(dt != T::zero());
+    pub fn update_spi(&mut self, measurement: T, dt: R) -> T {
+        debug_assert!(dt != R::ZERO);
 
         self.measurement_previous = measurement;
 
@@ -277,79 +297,6 @@ where
         // The PID calculation with additional S setpoint(openloop) and K kick(setpoint derivative) terms
         // P + S    + I
         partial_sum + self.error_integral
-    }
-
-    /// Optimized form of `update` that assumes all gains except `kp` are zero.
-    #[inline]
-    pub fn update_p(&mut self, measurement: T) -> T {
-        self.measurement_previous = measurement;
-        self.error = self.setpoint - measurement;
-
-        // The P (no I, no D) term
-        //         P
-        self.gains.kp * self.error
-    }
-
-    /// Optimized form of `update` that assumes all gains except `ks` and `kp` are zero.
-    #[inline]
-    pub fn update_sp(&mut self, measurement: T) -> T {
-        self.measurement_previous = measurement;
-        self.error = self.setpoint - measurement;
-
-        // The P (no I, no D) calculation with additional S setpoint(openloop) term
-        //         P               + S
-        self.gains.kp * self.error + self.gains.ks * self.setpoint
-    }
-
-    /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `kd` are zero.
-    pub fn update_spd(&mut self, measurement: T, measurement_delta: T, dt: T) -> T {
-        debug_assert!(dt != T::zero());
-
-        self.measurement_previous = measurement;
-        self.error = self.setpoint - measurement;
-
-        self.error_derivative = -measurement_delta / dt; // note minus sign, error delta has reverse polarity to measurement delta
-
-        // The PD (no I) calculation with additional S setpoint(openloop) term
-        //         P               + D                                     + S
-        self.gains.kp * self.error + self.gains.kd * self.error_derivative + self.gains.ks * self.setpoint
-    }
-
-    /// Optimized form of `update` that assumes that `ki` is zero.
-    #[inline]
-    pub fn update_skpd(&mut self, measurement: T, measurement_delta: T, dt: T) -> T {
-        self.update_spd(measurement, measurement_delta, dt) + self.gains.kk * self.setpoint_derivative
-    }
-
-    /// Partial PID sum helper function, excludes `Iterm`,
-    /// has additional S setpoint(openloop) and K kick(setpoint derivative) terms.
-    #[inline]
-    pub fn partial_sum(&self) -> T {
-        self.gains.kp * self.error
-            + self.gains.kd * self.error_derivative
-            + self.gains.ks * self.setpoint
-            + self.gains.kk * self.setpoint_derivative
-    }
-
-    /// Reset the PID integral to zero.
-    #[inline]
-    pub fn reset_integral(&mut self) {
-        self.error_integral = T::zero();
-    }
-
-    /// Switch PID integration off by saving `ki` and then setting `ki` to zero.
-    #[inline]
-    pub fn switch_integration_off(&mut self) {
-        self.ki_saved = self.gains.ki;
-        self.gains.ki = T::zero();
-        self.error_integral = T::zero();
-    }
-
-    /// Switch PID integration back on, restoring the previously saved value of `ki`.
-    #[inline]
-    pub fn switch_integration_on(&mut self) {
-        self.gains.ki = self.ki_saved;
-        self.error_integral = T::ZERO;
     }
 
     /// Safely update gains on the fly without causing an output bump.
@@ -385,9 +332,103 @@ where
     }
 }
 
-impl<T> PidskController<T>
+impl<T, R> PidskController<T, R>
 where
-    T: Copy + ConstZero + Sub<T, Output = T> + PartialEq,
+    T: Copy + Add<Output = T> + Mul<Output = T>,
+{
+    /// Partial PID sum helper function, excludes `Iterm`,
+    /// has additional S setpoint(openloop) and K kick(setpoint derivative) terms.
+    #[inline]
+    pub fn partial_sum(&self) -> T {
+        self.gains.kp * self.error
+            + self.gains.kd * self.error_derivative
+            + self.gains.ks * self.setpoint
+            + self.gains.kk * self.setpoint_derivative
+    }
+}
+
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + ConstZero + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Neg<Output = T> + PartialEq,
+{
+    /// Optimized form of `update` that assumes all gains except `kp` are zero.
+    #[inline]
+    pub fn update_p(&mut self, measurement: T) -> T {
+        self.measurement_previous = measurement;
+        self.error = self.setpoint - measurement;
+
+        // The P (no I, no D) term
+        //         P
+        self.gains.kp * self.error
+    }
+
+    /// Optimized form of `update` that assumes all gains except `ks` and `kp` are zero.
+    #[inline]
+    pub fn update_sp(&mut self, measurement: T) -> T {
+        self.measurement_previous = measurement;
+        self.error = self.setpoint - measurement;
+
+        // The P (no I, no D) calculation with additional S setpoint(openloop) term
+        //         P               + S
+        self.gains.kp * self.error + self.gains.ks * self.setpoint
+    }
+}
+
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Neg<Output = T> + Div<R, Output = T>,
+    R: ConstZero + PartialEq,
+{
+    /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `kd` are zero.
+    pub fn update_spd(&mut self, measurement: T, measurement_delta: T, dt: R) -> T {
+        debug_assert!(dt != R::ZERO);
+
+        self.measurement_previous = measurement;
+        self.error = self.setpoint - measurement;
+
+        self.error_derivative = -measurement_delta / dt; // note minus sign, error delta has reverse polarity to measurement delta
+
+        // The PD (no I) calculation with additional S setpoint(openloop) term
+        //         P               + D                                     + S
+        self.gains.kp * self.error + self.gains.kd * self.error_derivative + self.gains.ks * self.setpoint
+    }
+
+    /// Optimized form of `update` that assumes that `ki` is zero.
+    #[inline]
+    pub fn update_skpd(&mut self, measurement: T, measurement_delta: T, dt: R) -> T {
+        self.update_spd(measurement, measurement_delta, dt) + self.gains.kk * self.setpoint_derivative
+    }
+}
+
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + ConstZero,
+{
+    /// Reset the PID integral to zero.
+    #[inline]
+    pub fn reset_integral(&mut self) {
+        self.error_integral = T::ZERO;
+    }
+
+    /// Switch PID integration off by saving `ki` and then setting `ki` to zero.
+    #[inline]
+    pub fn switch_integration_off(&mut self) {
+        self.ki_saved = self.gains.ki;
+        self.gains.ki = T::ZERO;
+        self.error_integral = T::ZERO;
+    }
+
+    /// Switch PID integration back on, restoring the previously saved value of `ki`.
+    #[inline]
+    pub fn switch_integration_on(&mut self) {
+        self.gains.ki = self.ki_saved;
+        self.error_integral = T::ZERO;
+    }
+}
+
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + Sub<T, Output = T>,
 {
     /// Set the setpoint, saving the previous setpoint.
     #[inline]
@@ -443,28 +484,34 @@ where
     }
 }
 
-/*impl<T> PidController<T>
-where T: Copy + ConstZero  + Sub<T, Output = T> + PartialEq
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + Sub<T, Output = T> + Div<R, Output = T>,
+    R: ConstZero + PartialEq,
 {
     /// Set the setpoint and calculate the setpoint derivative.
     #[inline]
-    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: T) {
-        debug_assert!(dt != T::zero());
+    pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: R) {
+        debug_assert!(dt != R::ZERO);
         self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
         self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;
     }
-}*/
-impl<T: Copy + PartialEq + Zero> PidskController<T> {
+}
+
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + ConstZero + PartialEq,
+{
     /// Set the gains, setting `error_integral` to zero if `ki` is zero.
     #[inline]
     pub fn set_gains(&mut self, gains: PidskGains<T>) {
         self.gains = gains;
         self.ki_saved = self.gains.ki;
-        if self.gains.ki == T::zero() {
+        if self.gains.ki == T::ZERO {
             // If the new Ki is zero, the integral term cannot contribute to the output.
             // Clear the accumulator to prevent massive hidden windup if Ki is re-enabled later.
-            self.error_integral = T::zero();
+            self.error_integral = T::ZERO;
         }
     }
 
@@ -479,10 +526,10 @@ impl<T: Copy + PartialEq + Zero> PidskController<T> {
     pub fn set_ki(&mut self, ki: T) {
         self.gains.ki = ki;
         self.ki_saved = self.gains.ki;
-        if self.gains.ki == T::zero() {
+        if self.gains.ki == T::ZERO {
             // If the new Ki is zero, the integral term cannot contribute to the output.
             // Clear the accumulator to prevent massive hidden windup if Ki is re-enabled later.
-            self.error_integral = T::zero();
+            self.error_integral = T::ZERO;
         }
     }
 
@@ -505,7 +552,10 @@ impl<T: Copy + PartialEq + Zero> PidskController<T> {
     }
 }
 
-impl<T: Copy + Default> From<PidskGains<T>> for PidskController<T> {
+impl<T, R> From<PidskGains<T>> for PidskController<T, R>
+where
+    T: Copy + Default,
+{
     fn from(pid: PidskGains<T>) -> Self {
         Self {
             gains: PidskGains {
@@ -528,12 +578,16 @@ impl<T: Copy + Default> From<PidskGains<T>> for PidskController<T> {
             error_derivative: T::default(),
             error_integral: T::default(),
             error: T::default(),
+            _marker: PhantomData::<R>,
         }
     }
 }
 
 #[allow(missing_docs)]
-impl<T: Copy + Neg<Output = T>> PidskController<T> {
+impl<T, R> PidskController<T, R>
+where
+    T: Copy + Neg<Output = T>,
+{
     pub fn limits(&self) -> PidLimits<T> {
         self.limits
     }
@@ -561,9 +615,9 @@ impl<T: Copy + Neg<Output = T>> PidskController<T> {
 }
 
 /// Accessor functions to obtain error values.
-impl<T> PidskController<T>
+impl<T, R> PidskController<T, R>
 where
-    T: Copy + ConstZero + Mul<Output = T> + PartialEq + Div<Output = T>,
+    T: Copy + ConstZero + Mul<Output = T> + Div<Output = T> + PartialEq,
 {
     /// Returns the errors, multiplied by the gains.
     pub fn error(&self) -> PidskErrors<T> {
@@ -599,20 +653,20 @@ where
     /// Clears historical record to allow bumpless transfer.
     pub fn reset(&mut self) {
         self.measurement_previous = self.setpoint;
-        self.setpoint_derivative = T::zero();
-        self.error = T::zero();
-        self.error_integral = T::zero();
-        self.error_derivative = T::zero();
+        self.setpoint_derivative = T::ZERO;
+        self.error = T::ZERO;
+        self.error_integral = T::ZERO;
+        self.error_derivative = T::ZERO;
     }
 
     /// Reset all, for test code.
     pub fn reset_all(&mut self) {
-        self.measurement_previous = T::zero();
-        self.setpoint = T::zero();
-        self.setpoint_derivative = T::zero();
-        self.error = T::zero();
-        self.error_integral = T::zero();
-        self.error_derivative = T::zero();
+        self.measurement_previous = T::ZERO;
+        self.setpoint = T::ZERO;
+        self.setpoint_derivative = T::ZERO;
+        self.error = T::ZERO;
+        self.error_integral = T::ZERO;
+        self.error_derivative = T::ZERO;
     }
 }
 

@@ -41,14 +41,14 @@ impl<T> PostcardValue<'_> for PController<T> where T: Serialize + MaxSize + for<
 ///
 /// assert_eq!(1.0, p_controller.gains().kp);
 /// ```
-impl<T: Copy + ConstZero + ConstOne + PartialEq> Default for PController<T> {
+impl<T: Copy + ConstZero + ConstOne> Default for PController<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: Copy + ConstZero + ConstOne + PartialEq> PController<T> {
+impl<T: Copy + ConstZero + ConstOne> PController<T> {
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {

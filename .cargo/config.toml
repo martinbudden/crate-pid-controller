@@ -3,10 +3,14 @@
 test-none = [ "check", "--no-default-features"]
 test-serde = "test --features serde"
 test-storage = "test --features storage"
+test-vqm = "test --features vqm"
+test-all = [ "test", "--features", "vqm, serde ,storage"]
 
 check-none = [ "check", "--no-default-features"]
 check-serde = [ "check", "--no-default-features", "--features", "serde"]
 check-storage = [ "check", "--no-default-features", "--features", "storage"]
+check-vqm = [ "check", "--no-default-features", "--features", "vqm"]
+check-all = [ "check", "--features", "vqm, serde, storage"]
 
 # Continuous Integration
 ci = "run --package xtask --bin xtask"

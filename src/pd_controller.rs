@@ -1,5 +1,6 @@
-use core::ops::{AddAssign, Mul, Neg, Sub};
-use num_traits::{ConstOne, ConstZero, float::FloatCore};
+use core::marker::PhantomData;
+use core::ops::{Add, Div, Mul, Neg, Sub};
+use num_traits::{ConstOne, ConstZero};
 
 use crate::{PdErrors, PdGains};
 
@@ -12,10 +13,10 @@ use {
 };
 
 /// `PdController` using `f32` values.
-pub type PdControllerf32 = PdController<f32>;
+pub type PdControllerf32 = PdController<f32, f32>;
 
 /// `PdController` using `f64` values.
-pub type PdControllerf64 = PdController<f64>;
+pub type PdControllerf64 = PdController<f64, f64>;
 
 /// PD controller.<br>
 /// `PdControllerf32` and `PdControllerf64` aliases are available.<br>
@@ -25,7 +26,7 @@ pub type PdControllerf64 = PdController<f64>;
 ///
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-pub struct PdController<T> {
+pub struct PdController<T, R> {
     gains: PdGains<T>,
     measurement_previous: T,
 
@@ -33,10 +34,11 @@ pub struct PdController<T> {
 
     error: T,
     error_derivative: T,
+    _marker: PhantomData<R>,
 }
 
 #[cfg(feature = "storage")]
-impl<T> PostcardValue<'_> for PdController<T> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
+impl<T, R> PostcardValue<'_> for PdController<T, R> where T: Serialize + MaxSize + for<'de> Deserialize<'de> {}
 
 /// Default `PdController`.
 /// ```
@@ -47,14 +49,20 @@ impl<T> PostcardValue<'_> for PdController<T> where T: Serialize + MaxSize + for
 ///
 /// assert_eq!(1.0, pd_controller.gains().kp);
 /// ```
-impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> Default for PdController<T> {
+impl<T, R> Default for PdController<T, R>
+where
+    T: Copy + ConstZero + ConstOne,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> PdController<T> {
+impl<T, R> PdController<T, R>
+where
+    T: Copy + ConstZero + ConstOne,
+{
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
@@ -64,6 +72,7 @@ impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> P
             setpoint: T::ZERO,
             error: T::ZERO,
             error_derivative: T::ZERO,
+            _marker: PhantomData,
         }
     }
 
@@ -89,9 +98,10 @@ impl<T: Copy + AddAssign + ConstZero + ConstOne + PartialEq + Neg<Output = T>> P
     }
 }
 
-impl<T> PdController<T>
+impl<T, R> PdController<T, R>
 where
-    T: FloatCore,
+    T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Neg<Output = T> + Div<R, Output = T>,
+    R: ConstZero + PartialEq,
 {
     /// PD-controller update.
     /// ```
@@ -107,7 +117,7 @@ where
     /// assert_eq!(-0.05, output);
     /// ```
     #[inline]
-    pub fn update(&mut self, measurement: T, dt: T) -> T {
+    pub fn update(&mut self, measurement: T, dt: R) -> T {
         self.update_delta(measurement, measurement - self.measurement_previous, dt)
     }
 
@@ -132,8 +142,8 @@ where
     ///
     /// assert_eq!(-0.010_000_005, output);
     ///
-    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, dt: T) -> T {
-        debug_assert!(dt != T::zero());
+    pub fn update_delta(&mut self, measurement: T, measurement_delta: T, dt: R) -> T {
+        debug_assert!(dt != R::ZERO);
 
         self.measurement_previous = measurement;
 
@@ -145,7 +155,7 @@ where
     }
 }
 
-impl<T> PdController<T>
+impl<T, R> PdController<T, R>
 where
     T: Copy + ConstZero + Sub<Output = T> + Mul<Output = T>,
 {
@@ -166,7 +176,7 @@ where
     }
 }
 
-impl<T> PdController<T>
+impl<T, R> PdController<T, R>
 where
     T: Copy + ConstZero,
 {
@@ -222,7 +232,10 @@ where
     }
 }
 
-impl<T: Default> From<PdGains<T>> for PdController<T> {
+impl<T, R> From<PdGains<T>> for PdController<T, R>
+where
+    T: Default,
+{
     fn from(pid: PdGains<T>) -> Self {
         Self {
             gains: PdGains { kp: pid.kp, kd: pid.kd },
@@ -230,12 +243,13 @@ impl<T: Default> From<PdGains<T>> for PdController<T> {
             setpoint: T::default(),
             error_derivative: T::default(),
             error: T::default(),
+            _marker: PhantomData,
         }
     }
 }
 
 /// Accessor functions to obtain error values.
-impl<T> PdController<T>
+impl<T, R> PdController<T, R>
 where
     T: Copy + ConstZero + Mul<Output = T>,
 {

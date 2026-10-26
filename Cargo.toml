@@ -20,24 +20,30 @@ categories = [
 rustc_version = "0.4.1"
 
 [features]
-default =[]
-#default = ["serde"]
-serde = ["dep:serde", "postcard"]
-storage = ["dep:sequential-storage", "serde"]
+#default =[]
+#default =["vqm"]
+default = ["serde","storage"]
+
+# vqm/serde means: Enable vqm, and also enable vqm's serde feature. 
+# (This forces vqm to turn on, which breaks its optional nature in the serde feature context).
+# vqm?/serde means: If vqm is enabled by something else (like the explicit vqm feature flag), then also give it the serde feature.
+serde = ["dep:serde", "postcard", "vqm?/serde"]
+storage = ["dep:sequential-storage", "serde", "vqm?/storage"]
+vqm = ["dep:vqm"]
 
 [dependencies]
 num-traits = { version = "0.2.19", default-features = false }
 serde = { version = "1.0.229", default-features = false, features = ["derive"], optional = true }
 postcard = { version = "1.1.3", default-features = false, features = ["embedded-io", "experimental-derive"], optional = true }
 sequential-storage = { version = "8.0.1", default-features = false, features = ["postcard"], optional = true }
+#vqm = { version = "0.1.18", default-features = false, optional = true }
+vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix", default-features = false, optional = true }
+#vqm = { path = "../vqm", default-features = false, optional = true }
 
 [dev-dependencies]
 approx = { version = "0.5.1", default-features = false }
 signal-filters = { version = "0.1.15" }
 #signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
-#vqm = { version = "0.1.18" }
-#vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix", default-features = false }
-#vqm = { path = "../vqm", default-features = false }
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]
