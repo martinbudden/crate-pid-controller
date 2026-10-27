@@ -316,6 +316,11 @@ This is useful for applications where PID gains are changed during operation.
 For example a Flight Controller for a quadcopter may reduce the PID gains at high throttle values.
 Or the gains may be changed during in-flight PID tuning.
 
+## PID control in Quaternion Space
+
+[Quaternion Feedback Based Autonomous Control of a Quadcopter UAV with Thrust Vectoring Rotors](https://arxiv.org/html/2006.15686v1)
+[Full Quaternion Based Attitude Control for a Quadrotor](https://www.diva-portal.org/smash/get/diva2:1010947/FULLTEXT01.pdf).
+
 ## Choosing an update function
 
 For most applications, use either the standard `update()`, or `update_delta()` if you want to filter the D-term.
