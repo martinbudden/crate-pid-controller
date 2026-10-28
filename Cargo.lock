@@ -237,7 +237,7 @@ dependencies = [
 [[package]]
 name = "signal-filters"
 version = "0.1.15"
-source = "git+https://github.com/martinbudden/crate-signal-filters#e1d723d8408fab179140c5c0ecc6b82cc8e312e5"
+source = "git+https://github.com/martinbudden/crate-signal-filters#60ee376c7cf466605e71e415a78db0559bef494d"
 dependencies = [
  "libm",
  "num-traits",

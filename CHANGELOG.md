@@ -15,6 +15,10 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 - support for vector PID controllers
 
+### Removed
+
+- removed dependency on `FloatCore` trait.
+
 ## [0.1.12] - 2026-10-23
 
 ### Added

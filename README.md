@@ -3,7 +3,9 @@
 `pidsk-controller` is a PID controller with additional features useful for real-world control applications,
 including: variable loop timing, integral anti-windup, user-controlled derivative filtering, and runtime gain changes.
 
-The controller is available for both `f32` and `f64`.
+The PID controller is available for both `f32` and `f64`.
+
+Additionally the PID controller is available for vectors (eg `Vector3f32`).
 
 This crate is `no_std`, `no alloc`, `no panic`, `no unwrap`, `no expect`, and the Minimum Supported Rust Version (MSRV) is `Rust 1.89`.
 
@@ -21,7 +23,8 @@ This crate is `no_std`, `no alloc`, `no panic`, `no unwrap`, `no expect`, and th
 - **Custom I-term error** through `update_delta_iterm()`, allowing I-term relaxation.
 - **Access to individual PID terms** for logging, tuning, telemetry, and testing.
 - **Optimized update functions** for common **P**, **PI**, **PD**, and other configurations.
-- **`f32` and `f64` variants**.
+- **`f32` and `f64` scalar variants**.
+- **`Vector2f32`, `Vector3f32`, `Vector3f32`, and corresponding `f64` vector variants**.
 - **Optional `serde` support**: enable the `serde` feature to add `Serialize` and `Deserialize`.
 
 For cases where the full functionality of a `PidskController` is required, partial forms are provided:
@@ -251,18 +254,18 @@ let command = pid_controller.update_delta(
                ┌────────────────────┐
                │  pidsk-controller  │
                │                    │  command  ┌────────────┐
-Setpoint ─────►│ P + I + D + S + K  │──────────►│ Controlled │
+Setpoint ───▶──┤ P + I + D + S + K  ├─────▶─────┤ Controlled │
 (desired       │                    │           │   System   │
  value)        └──┬─────────┬───────┘           └─────┬──────┘
-                  ▲         ▲ filtered                ▼
-                  │         │ measurement delta       │ measurement
+                  ▲         ▲ filtered                │
+                  │         │ measurement delta       ▼ measurement
                   │    ┌────┴───┐                     │
                   │    │ D-term │                     │
                   │    │ filter │                     │
-                  │    └────▲───┘                     │
-                  │         │ measurement delta       │
+                  │    └────┬───┘                     │
+                  │         ▲ measurement delta       │
                   │    ┌────┴──────┐                  │
-                  └─── │measurement│──────────────────┘
+                  └────┤measurement├──────────────────┘
                        └───────────┘
 ```
 
@@ -318,8 +321,72 @@ Or the gains may be changed during in-flight PID tuning.
 
 ## PID control in Quaternion Space
 
-[Quaternion Feedback Based Autonomous Control of a Quadcopter UAV with Thrust Vectoring Rotors](https://arxiv.org/html/2006.15686v1)
-[Full Quaternion Based Attitude Control for a Quadrotor](https://www.diva-portal.org/smash/get/diva2:1010947/FULLTEXT01.pdf).
+Popular flight control software such as Betaflight and Ardupilot uses quaternions to represent the orientation of the aircraft,
+and for many of the calculations related to that orientation. However the orientation quaternion is converted to Euler
+angles for use use by the stabilization PID controllers. This is fairly computationally intensive and also re-introduces
+the problem of gimbal lock.
+
+It is, however, possible, to implement the stabilization PID controllers in quaternion space, without converting to Euler angles.
+This is the approach used by PX4 Autopilot. See also:
+
+- [Quaternion Feedback Based Autonomous Control of a Quadcopter UAV with Thrust Vectoring Rotors](https://arxiv.org/html/2006.15686v1)
+- [Full Quaternion Based Attitude Control for a Quadrotor](https://www.diva-portal.org/smash/get/diva2:1010947/FULLTEXT01.pdf).
+
+One way of doing this is to use a separate scalar PID controller for each imaginary component of the orientation quaternion.
+
+However, since `PidController` is implemented using generics (`PidControllerf32` and `PidControllerf64` are actually
+`PidController<f32>` and `PidController<f64>`) it is possible to define a vector `PidControllerVector3f32`
+(ie `PidControllerVector3<f32>`) and use it to process all 3 imaginary components of the orientation quaternion together.
+
+Since the filters in `signal-filters` are also implemented as generics, it is also possible to use vectorized filters
+to filter the gyro output and the Dterm.
+
+The example below puts this all together:
+
+```rust
+use pidsk_controller::PidController;
+use signal_filters::{Pt1FilterVector3Vector3f32, Pt1FilterVector3f32, UpdateFilter};
+use vqm::{Quaternionf32, Vector3f32};
+pub type PidControllerVector3f32 = PidController<Vector3f32, f32>;
+
+let dt = 0.01;
+// Create the gyro and Dterm filters.
+let mut gyro_filter = Pt1FilterVector3f32::new().with_k(0.9);
+let mut dterm_filter = Pt1FilterVector3Vector3f32::new().with_k(Vector3f32::new(0.9, 0.9, 1.0));
+
+// Create our vector PID controller and set the gains.
+// Note the yaw kd value is zero, since we use a PD controller for yaw.
+let mut pid_controller = PidControllerVector3f32::new()
+   .with_kp(Vector3f32::new(4.5, 4.5, 2.0))
+   .with_ki(Vector3f32::new(0.1, 0.1, 0.05))
+   .with_kd(Vector3f32::new(1.2, 1.2, 0.0));
+
+// Create a mock gyro measurement (in practice this comes from the IMU).
+let gyro_measurement_dps = Vector3f32::new(100.0, 110.0, 20.0);
+// Filter it and convert to radians per second.
+let gyro_measurement_filtered_rps = gyro_measurement_dps.filter_using(&mut gyro_filter).to_radians();
+// Convert to quaternion.
+let gyro_measurement_q = Quaternionf32::from(gyro_measurement_filtered_rps);
+
+// Create a mock target rate (in practice this comes from the joysticks).
+let target_rates_q = Quaternionf32::from_roll_pitch_yaw_degrees(200.0, 100.0, 50.0);
+// Use it to set the PID controller setpoint.
+pid_controller.set_setpoint(target_rates_q.imaginary());
+
+// Calculate the measurement delta and filter it.
+let measurement = gyro_measurement_q.imaginary();
+let measurement_delta_filtered =
+   (measurement - pid_controller.previous_measurement()).filter_using(&mut dterm_filter);
+
+// Calculate the error: setpoint - measurement, but in Quaternion space.
+let error = (Quaternionf32::from(pid_controller.setpoint()) * gyro_measurement_q.conjugate())
+   .normalize()
+   .imaginary();
+
+// Calculate the output using the PID controller.
+let output = pid_controller.update_delta_error(measurement, measurement_delta_filtered, error, dt);
+// ... next step is to send the output to the motor mixer.
+```
 
 ## Choosing an update function
 
