@@ -9,15 +9,20 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
-## [0.1.13] - 2026-11-xx
+## [0.1.13] - 2026-10-28
 
 ### Added
 
-- support for vector PID controllers
+- Support for vector PID controllers
+
+### Changed
+
+- Updated to `signal-filters` `0.1.16`.
+- Updated to `vqm` `0.1.19`.
 
 ### Removed
 
-- removed dependency on `FloatCore` trait.
+- Removed dependency on `FloatCore` trait.
 
 ## [0.1.12] - 2026-10-23
 
@@ -25,12 +30,12 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 - Added back `PidController::setpoint_previous` and `PidController::previous()`.
 - functions to set individual gains.
-- Updated to `signal-filters` `0.1.15`.
 
 ### Changed
 
 - README.md uses svg version of PIDSK equation.
 - Changed `.markdownlint.json` to allow more inline HTML.
+- Updated to `signal-filters` `0.1.15`.
 
 ## [0.1.11] - 2026-10-03
 
@@ -60,7 +65,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 - split `serde` feature into `serde` and `storage`.
 - updated to Rust version 1.89.
-- Updated to `signal-filters` `0.1.14`.
+- updated to `signal-filters` `0.1.14`.
 
 ## [0.1.9] - 2026-09-05
 
