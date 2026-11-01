@@ -15,6 +15,7 @@
         "Controllerf",
         "deadband",
         "debuginfo",
+        "Doctests",
         "documentclass",
         "Dterm",
         "dtolnay",

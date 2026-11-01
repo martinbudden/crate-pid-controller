@@ -1,8 +1,8 @@
 [alias]
 # Run using: 'cargo test-serde'
-test-none = [ "check", "--no-default-features"]
-test-serde = "test --features serde"
-test-storage = "test --features storage"
+#test-none = [ "test", "--no-default-features"]
+test-serde = "test --features serde, vqm"
+test-storage = "test --features storage, vqm"
 test-vqm = "test --features vqm"
 test-all = [ "test", "--features", "vqm, serde ,storage"]
 
@@ -11,6 +11,12 @@ check-serde = [ "check", "--no-default-features", "--features", "serde"]
 check-storage = [ "check", "--no-default-features", "--features", "storage"]
 check-vqm = [ "check", "--no-default-features", "--features", "vqm"]
 check-all = [ "check", "--features", "vqm, serde, storage"]
+
+tp = "tarpaulin --ignore-tests --run-types Tests"
+dc = ["tarpaulin", "--doc", "--ignore-tests", "--run-types", "Doctests", "--features", "vqm"]
+
+# Run using: 'cargo + nightly doc-coverage'
+doc-coverage = "rustdoc -- -Z unstable-options --show-coverage"
 
 # Continuous Integration
 ci = "run --package xtask --bin xtask"

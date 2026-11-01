@@ -16,9 +16,10 @@ pub type PdErrorsf64 = PdErrors<f64>;
 /// P and D errors as calculated by PD-controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-#[allow(missing_docs)]
 pub struct PdErrors<T> {
+    /// P-term error.
     pub p: T,
+    /// D-term error.
     pub d: T,
 }
 

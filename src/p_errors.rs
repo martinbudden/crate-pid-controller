@@ -16,8 +16,8 @@ pub type PErrorsf64 = PErrors<f64>;
 /// P error as calculated by P-controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-#[allow(missing_docs)]
 pub struct PErrors<T> {
+    /// P-term error.
     pub p: T,
 }
 

@@ -16,12 +16,16 @@ pub type PidskErrorsf64 = PidskErrors<f64>;
 /// P, I, D, S, and K errors as calculated by PID controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
-#[allow(missing_docs)]
 pub struct PidskErrors<T> {
+    /// P-term error.
     pub p: T,
+    /// I-term error.
     pub i: T,
+    /// D-term error.
     pub d: T,
+    /// S-term error.
     pub s: T,
+    /// K-term error.
     pub k: T,
 }
 

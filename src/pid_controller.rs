@@ -515,17 +515,34 @@ where
         self.limits.integral_max = Some(integral_max);
     }
 
+    pub fn clear_integral_max(&mut self) {
+        self.limits.integral_max = None;
+    }
+
     pub fn set_integral_min(&mut self, integral_min: T) {
         self.limits.integral_min = Some(integral_min);
     }
 
-    pub fn set_integral_limit(&mut self, integral_limit: T) {
+    pub fn clear_integral_min(&mut self) {
+        self.limits.integral_min = None;
+    }
+
+    pub fn set_integral_limits(&mut self, integral_limit: T) {
         self.limits.integral_max = Some(integral_limit);
         self.limits.integral_min = Some(-integral_limit);
     }
 
+    pub fn clear_integral_limits(&mut self) {
+        self.limits.integral_max = None;
+        self.limits.integral_min = None;
+    }
+
     pub fn set_output_saturation(&mut self, output_saturation: T) {
         self.limits.output_saturation = Some(output_saturation);
+    }
+
+    pub fn clear_output_saturation(&mut self) {
+        self.limits.output_saturation = None;
     }
 }
 
