@@ -507,40 +507,51 @@ where
         self.limits
     }
 
+    /// Directly set the PID limits.
     pub fn set_limits(&mut self, limits: PidLimits<T>) {
         self.limits = limits;
     }
 
+    /// Set the Iterm maximum integral (anti-windup) limit.
+    /// This allows asymmetric Iterm limiting.
     pub fn set_integral_max(&mut self, integral_max: T) {
         self.limits.integral_max = Some(integral_max);
     }
 
+    /// Switch of Iterm maximum limiting.
     pub fn clear_integral_max(&mut self) {
         self.limits.integral_max = None;
     }
 
+    /// Set the Iterm minimum integral (anti-windup) limit.
+    /// This allows asymmetric Iterm limiting.
     pub fn set_integral_min(&mut self, integral_min: T) {
         self.limits.integral_min = Some(integral_min);
     }
 
+    /// Switch of Iterm maximum limiting.
     pub fn clear_integral_min(&mut self) {
         self.limits.integral_min = None;
     }
 
+    /// Symmetrically set the Iterm maximum and minimum limits (ie set values to be +/- `integral_limit`).
     pub fn set_integral_limits(&mut self, integral_limit: T) {
         self.limits.integral_max = Some(integral_limit);
         self.limits.integral_min = Some(-integral_limit);
     }
 
+    /// Switch off Iterm limiting.
     pub fn clear_integral_limits(&mut self) {
         self.limits.integral_max = None;
         self.limits.integral_min = None;
     }
 
+    /// Set output saturation Iterm anti-windup.
     pub fn set_output_saturation(&mut self, output_saturation: T) {
         self.limits.output_saturation = Some(output_saturation);
     }
 
+    /// Switch off output saturation Iterm anti-windup.
     pub fn clear_output_saturation(&mut self) {
         self.limits.output_saturation = None;
     }

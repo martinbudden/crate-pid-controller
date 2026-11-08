@@ -20,8 +20,8 @@ categories = [
 rustc_version = "0.4.1"
 
 [features]
-default = []
-#default =["vqm"]
+#default = []
+default =["vqm"] # Needed for example in README.md.
 #default = ["serde","storage"]
 
 # vqm/serde means: Enable vqm, and also enable vqm's serde feature. 
