@@ -236,8 +236,9 @@ dependencies = [
 
 [[package]]
 name = "signal-filters"
-version = "0.1.16"
-source = "git+https://github.com/martinbudden/crate-signal-filters#626c1672c3c4f76fbb948a15434cb4976cc03b39"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "208b23ddfc5bd1e6e45b9e5c8137ab803cc7ffca071a71bbadbc6018a7eeeee3"
 dependencies = [
  "libm",
  "num-traits",
