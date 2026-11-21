@@ -236,9 +236,9 @@ dependencies = [
 
 [[package]]
 name = "signal-filters"
-version = "0.1.17"
+version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "208b23ddfc5bd1e6e45b9e5c8137ab803cc7ffca071a71bbadbc6018a7eeeee3"
+checksum = "6e425d28ead80ac7b5927ed454c3c1bdaa79cb79600cb278847c6ed961670757"
 dependencies = [
  "libm",
  "num-traits",
@@ -311,9 +311,9 @@ checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
 name = "vqm"
-version = "0.1.20"
+version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb7ad45d31dcabef886a8f8a6300b0c8c902b59b6867bf87db6ea7fac8874857"
+checksum = "69d06e89bf814aeea8f0de0dc473b3437227cc71e6f61e0907b910e282c904e6"
 dependencies = [
  "libm",
  "num-traits",

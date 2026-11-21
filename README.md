@@ -346,7 +346,7 @@ The example below puts this all together:
 ```rust
 use pidsk_controller::PidController;
 use signal_filters::{Pt1FilterVector3Vector3f32, Pt1FilterVector3f32, UpdateFilter};
-use vqm::{Quaternionf32, Vector3f32};
+use vqm::{Quaternionf32, UnitQuaternionf32, Vector3f32};
 pub type PidControllerVector3f32 = PidController<Vector3f32, f32>;
 
 let dt = 0.01;
@@ -366,10 +366,10 @@ let gyro_measurement_dps = Vector3f32::new(100.0, 110.0, 20.0);
 // Filter it and convert to radians per second.
 let gyro_measurement_filtered_rps = gyro_measurement_dps.filter_using(&mut gyro_filter).to_radians();
 // Convert to quaternion.
-let gyro_measurement_q = Quaternionf32::from(gyro_measurement_filtered_rps);
+let gyro_measurement_q = UnitQuaternionf32::from(gyro_measurement_filtered_rps);
 
 // Create a mock target rate (in practice this comes from the joysticks).
-let target_rates_q = Quaternionf32::from_roll_pitch_yaw_degrees(200.0, 100.0, 50.0);
+let target_rates_q = UnitQuaternionf32::from_roll_pitch_yaw_degrees(200.0, 100.0, 50.0);
 // Use it to set the PID controller setpoint.
 pid_controller.set_setpoint(target_rates_q.imaginary());
 
@@ -379,7 +379,7 @@ let measurement_delta_filtered =
    (measurement - pid_controller.previous_measurement()).filter_using(&mut dterm_filter);
 
 // Calculate the error: setpoint - measurement, but in Quaternion space.
-let error = (Quaternionf32::from(pid_controller.setpoint()) * gyro_measurement_q.conjugate())
+let error = (Quaternionf32::from(pid_controller.setpoint()) * gyro_measurement_q.q().conjugate())
    .normalize()
    .imaginary();
 

@@ -86,7 +86,7 @@ mod tests {
     fn rate_controller() {
         use pidsk_controller::PidController;
         use signal_filters::{Pt1FilterVector3Vector3f32, Pt1FilterVector3f32, UpdateFilter};
-        use vqm::{Quaternionf32, Vector3f32};
+        use vqm::{Quaternionf32, UnitQuaternionf32, Vector3f32};
         pub type PidControllerVector3f32 = PidController<Vector3f32, f32>;
 
         let dt = 0.01;
@@ -108,7 +108,7 @@ mod tests {
         let gyro_measurement_q = Quaternionf32::from(gyro_measurement_filtered_rps);
 
         // Create a mock target rate (in practice this comes from the joysticks).
-        let target_rates_q = Quaternionf32::from_roll_pitch_yaw_degrees(200.0, 100.0, 50.0);
+        let target_rates_q = UnitQuaternionf32::from_roll_pitch_yaw_degrees(200.0, 100.0, 50.0);
         // Use it to set the PID controller setpoint.
         pid_controller.set_setpoint(target_rates_q.imaginary());
 

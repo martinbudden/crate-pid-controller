@@ -9,6 +9,13 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
+## [0.1.15] - 2026-11-21
+
+### Changed
+
+- Updated to `signal-filters` `0.1.17`.
+- Updated to `vqm` `0.1.20`.
+
 ## [0.1.14] - 2026-11-12
 
 ### Added
