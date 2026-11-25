@@ -12,6 +12,7 @@
         "byteorder",
         "clippy",
         "codegen",
+        "componentwise",
         "Controllerf",
         "deadband",
         "debuginfo",
