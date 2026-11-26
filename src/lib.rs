@@ -37,6 +37,7 @@ mod pd_controller;
 mod pd_errors;
 mod pd_gains;
 
+mod gain_one;
 mod min_max_clamp;
 
 pub use pid_limits::{PidLimits, PidLimitsf32, PidLimitsf64};
@@ -57,4 +58,5 @@ pub use pd_controller::{PdController, PdControllerf32, PdControllerf64};
 pub use pd_errors::{PdErrors, PdErrorsf32, PdErrorsf64};
 pub use pd_gains::{PdGains, PdGainsf32, PdGainsf64};
 
+pub use gain_one::GainOne;
 pub use min_max_clamp::MinMaxClamp;

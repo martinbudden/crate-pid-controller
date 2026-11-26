@@ -1,12 +1,9 @@
 use num_traits::Zero;
 
-#[cfg(feature = "storage")]
-use sequential_storage::map::PostcardValue;
 #[cfg(feature = "serde")]
-use {
-    postcard::experimental::max_size::MaxSize,
-    serde::{Deserialize, Serialize},
-};
+use ::serde::{Deserialize, Serialize};
+#[cfg(feature = "storage")]
+use {postcard::experimental::max_size::MaxSize, sequential_storage::map::PostcardValue};
 
 /// `PdErrors` using `f32` values.
 pub type PdErrorsf32 = PdErrors<f32>;
@@ -15,7 +12,8 @@ pub type PdErrorsf64 = PdErrors<f64>;
 
 /// P and D errors as calculated by PD-controller.<br><br>
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "storage", derive(MaxSize))]
 pub struct PdErrors<T> {
     /// P-term error.
     pub p: T,
@@ -46,9 +44,9 @@ mod test_traits {
 
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    fn is_serde<T: Serialize + for<'a> Deserialize<'a>>() {}
     #[cfg(feature = "storage")]
-    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+    fn is_storage<T: MaxSize + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {

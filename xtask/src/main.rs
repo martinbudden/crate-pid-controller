@@ -25,9 +25,18 @@ fn run_ci_pipeline() {
         ("check", &["--no-default-features", "--features", "serde"]),
         ("check", &["--no-default-features", "--features", "storage"]),
         ("check", &["--no-default-features", "--features", "serde, storage, vqm"]),
+        (
+            "check",
+            &["--no-default-features", "--features", "serde, storage, nalgebra"],
+        ),
         ("test", &["--no-default-features", "--features", "vqm"]),
-        //("test", &["--no-default-features", "--features", "serde, storage"]),
+        ("test", &["--no-default-features", "--features", "nalgebra"]),
+        ("test", &["--no-default-features", "--features", "serde, storage"]),
         ("test", &["--no-default-features", "--features", "serde, storage, vqm"]),
+        (
+            "test",
+            &["--no-default-features", "--features", "serde, storage, nalgebra"],
+        ),
         ("doc", &["--no-deps", "--features", "serde, storage, vqm"]),
         ("publish", &["--dry-run"]),
     ];

@@ -1,16 +1,13 @@
 use core::marker::PhantomData;
 use core::ops::{Add, Div, Mul, Neg, Sub};
-use num_traits::{ConstOne, ConstZero};
+use num_traits::Zero;
 
-use crate::{PdErrors, PdGains};
+use crate::{GainOne, PdErrors, PdGains};
 
-#[cfg(feature = "storage")]
-use sequential_storage::map::PostcardValue;
 #[cfg(feature = "serde")]
-use {
-    postcard::experimental::max_size::MaxSize,
-    serde::{Deserialize, Serialize},
-};
+use ::serde::{Deserialize, Serialize};
+#[cfg(feature = "storage")]
+use {postcard::experimental::max_size::MaxSize, sequential_storage::map::PostcardValue};
 
 /// `PdController` using `f32` values.
 pub type PdControllerf32 = PdController<f32, f32>;
@@ -25,7 +22,8 @@ pub type PdControllerf64 = PdController<f64, f64>;
 /// (In the "dependent PID" notation `kc` and `tau_d` parameters are used, where `kp = kc` and `kd = kc*tau_d`).
 ///
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "storage", derive(MaxSize))]
 pub struct PdController<T, R> {
     gains: PdGains<T>,
     measurement_previous: T,
@@ -51,7 +49,7 @@ impl<T, R> PostcardValue<'_> for PdController<T, R> where T: Serialize + MaxSize
 /// ```
 impl<T, R> Default for PdController<T, R>
 where
-    T: Copy + ConstZero + ConstOne,
+    T: Zero + GainOne,
 {
     fn default() -> Self {
         Self::new()
@@ -59,19 +57,19 @@ where
 }
 
 // Constructors
-impl<T, R> PdController<T, R>
-where
-    T: Copy + ConstZero + ConstOne,
-{
+impl<T, R> PdController<T, R> {
     /// Constructor.
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self
+    where
+        T: Zero + GainOne,
+    {
         Self {
             gains: PdGains::new(),
-            measurement_previous: T::ZERO,
-            setpoint: T::ZERO,
-            error: T::ZERO,
-            error_derivative: T::ZERO,
+            measurement_previous: T::zero(),
+            setpoint: T::zero(),
+            error: T::zero(),
+            error_derivative: T::zero(),
             _marker: PhantomData,
         }
     }
@@ -101,7 +99,7 @@ where
 impl<T, R> PdController<T, R>
 where
     T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Neg<Output = T> + Div<R, Output = T>,
-    R: ConstZero + PartialEq,
+    R: Zero + PartialEq,
 {
     /// PD-controller update.
     /// ```
@@ -143,7 +141,7 @@ where
     /// assert_eq!(-0.010_000_005, output);
     ///
     pub fn update_delta(&mut self, measurement: T, measurement_delta: T, dt: R) -> T {
-        debug_assert!(dt != R::ZERO);
+        debug_assert!(dt != R::zero());
 
         self.measurement_previous = measurement;
 
@@ -157,7 +155,7 @@ where
 
 impl<T, R> PdController<T, R>
 where
-    T: Copy + ConstZero + Sub<Output = T> + Mul<Output = T>,
+    T: Copy + Zero + Sub<Output = T> + Mul<Output = T>,
 {
     /// Optimized form of `update` that assumes all gains except `kp` are zero.
     #[inline]
@@ -176,10 +174,7 @@ where
     }
 }
 
-impl<T, R> PdController<T, R>
-where
-    T: Copy + ConstZero,
-{
+impl<T, R> PdController<T, R> {
     /// Set the setpoint.
     #[inline]
     pub fn set_setpoint(&mut self, setpoint: T) {
@@ -188,7 +183,10 @@ where
 
     /// Return the setpoint.
     #[inline]
-    pub fn setpoint(&self) -> T {
+    pub fn setpoint(&self) -> T
+    where
+        T: Copy,
+    {
         self.setpoint
     }
 
@@ -200,13 +198,19 @@ where
 
     /// Returns the previous measurement, useful for `Dterm` filtering.
     #[inline]
-    pub fn previous_measurement(&self) -> T {
+    pub fn previous_measurement(&self) -> T
+    where
+        T: Copy,
+    {
         self.measurement_previous
     }
 
     /// Return the gains.
     #[inline]
-    pub fn gains(&self) -> PdGains<T> {
+    pub fn gains(&self) -> PdGains<T>
+    where
+        T: Copy,
+    {
         PdGains {
             kp: self.gains.kp,
             kd: self.gains.kd,
@@ -249,12 +253,12 @@ where
 }
 
 /// Accessor functions to obtain error values.
-impl<T, R> PdController<T, R>
-where
-    T: Copy + ConstZero + Mul<Output = T>,
-{
+impl<T, R> PdController<T, R> {
     /// Returns the errors multiplied by the gains.
-    pub fn error(&self) -> PdErrors<T> {
+    pub fn error(&self) -> PdErrors<T>
+    where
+        T: Copy + Mul<Output = T>,
+    {
         PdErrors {
             p: self.error * self.gains.kp,
             d: self.error_derivative * self.gains.kd,
@@ -262,7 +266,10 @@ where
     }
 
     /// Returns the raw values of the errors, ie NOT multiplied by the gains.
-    pub fn error_raw(&self) -> PdErrors<T> {
+    pub fn error_raw(&self) -> PdErrors<T>
+    where
+        T: Copy,
+    {
         PdErrors {
             p: self.error,
             d: self.error_derivative,
@@ -270,23 +277,32 @@ where
     }
 
     /// Returns the error, for test code.
-    pub fn previous_error(&self) -> T {
+    pub fn previous_error(&self) -> T
+    where
+        T: Copy,
+    {
         self.error
     }
 
     /// Clears historical record to allow bumpless transfer.
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self)
+    where
+        T: Copy + Zero,
+    {
         self.measurement_previous = self.setpoint;
-        self.error = T::ZERO;
-        self.error_derivative = T::ZERO;
+        self.error = T::zero();
+        self.error_derivative = T::zero();
     }
 
     /// Reset all, for test code.
-    pub fn reset_all(&mut self) {
-        self.measurement_previous = T::ZERO;
-        self.setpoint = T::ZERO;
-        self.error = T::ZERO;
-        self.error_derivative = T::ZERO;
+    pub fn reset_all(&mut self)
+    where
+        T: Copy + Zero,
+    {
+        self.measurement_previous = T::zero();
+        self.setpoint = T::zero();
+        self.error = T::zero();
+        self.error_derivative = T::zero();
     }
 }
 
@@ -296,9 +312,9 @@ mod test_traits {
 
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    fn is_serde<T: Serialize + for<'a> Deserialize<'a>>() {}
     #[cfg(feature = "storage")]
-    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+    fn is_storage<T: MaxSize + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {

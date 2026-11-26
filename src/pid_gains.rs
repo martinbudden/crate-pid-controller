@@ -1,12 +1,11 @@
-use num_traits::{ConstOne, ConstZero};
+use crate::GainOne;
+use num_traits::Zero;
+
+#[cfg(feature = "serde")]
+use ::serde::{Deserialize, Serialize};
 
 #[cfg(feature = "storage")]
-use sequential_storage::map::PostcardValue;
-#[cfg(feature = "serde")]
-use {
-    postcard::experimental::max_size::MaxSize,
-    serde::{Deserialize, Serialize},
-};
+use {postcard::experimental::max_size::MaxSize, sequential_storage::map::PostcardValue};
 
 /// `PidskGains` using `f32` values.
 pub type PidGainsf32 = PidGains<f32>;
@@ -19,7 +18,8 @@ pub type PidGainsf64 = PidGains<f64>;
 /// (In the "dependent PID" notation `kc`, `tau_i`, and `tau_d` parameters are used, where `kp = kc`, `ki = kc/tau_i`, `kd = kc*tau_d`).
 ///
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "storage", derive(MaxSize))]
 pub struct PidGains<T> {
     /// proportional gain.
     pub kp: T,
@@ -34,24 +34,24 @@ impl<T> PostcardValue<'_> for PidGains<T> where T: Serialize + MaxSize + for<'de
 
 impl<T> Default for PidGains<T>
 where
-    T: ConstOne + ConstZero,
+    T: Zero + GainOne,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> PidGains<T>
-where
-    T: ConstOne + ConstZero,
-{
+impl<T> PidGains<T> {
     /// Constructor.
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self
+    where
+        T: Zero + GainOne,
+    {
         Self {
-            kp: T::ONE,
-            ki: T::ZERO,
-            kd: T::ZERO,
+            kp: T::gain_one(),
+            ki: T::zero(),
+            kd: T::zero(),
         }
     }
 
@@ -83,9 +83,9 @@ mod test_traits {
 
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    fn is_serde<T: Serialize + for<'a> Deserialize<'a>>() {}
     #[cfg(feature = "storage")]
-    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+    fn is_storage<T: MaxSize + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {

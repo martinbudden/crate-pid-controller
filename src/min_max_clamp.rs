@@ -1,5 +1,6 @@
 #[cfg(feature = "vqm")]
 use vqm::{Vector2f32, Vector2f64, Vector3f32, Vector3f64, Vector4f32, Vector4f64};
+
 /// Trait for min, max, and clamp functions.
 pub trait MinMaxClamp {
     /// Returns the minimum of the two values.

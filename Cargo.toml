@@ -21,15 +21,19 @@ rustc_version = "0.4.1"
 
 [features]
 #default = []
-default =["vqm"] # Needed for example in README.md.
+#default =["vqm"] # Needed for example in README.md.
+#default = ["nalgebra"]
 #default = ["serde","storage"]
 
 # vqm/serde means: Enable vqm, and also enable vqm's serde feature. 
 # (This forces vqm to turn on, which breaks its optional nature in the serde feature context).
 # vqm?/serde means: If vqm is enabled by something else (like the explicit vqm feature flag), then also give it the serde feature.
-serde = ["dep:serde", "postcard", "vqm?/serde"]
+#std = ["num-traits/std", "vqm?/std", "nalgebra?/std"]
+#libm = ["dep:libm", "num-traits/libm", "vqm?/libm", "nalgebra?/libm"]
+serde = ["dep:serde", "postcard", "vqm?/serde", "nalgebra?/serde-serialize-no-std"]
 storage = ["dep:sequential-storage", "serde", "vqm?/storage"]
 vqm = ["dep:vqm"]
+nalgebra = ["dep:nalgebra"]
 
 [dependencies]
 num-traits = { version = "0.2.19", default-features = false }
@@ -41,6 +45,7 @@ sequential-storage = { version = "8.0.1", default-features = false, features = [
 #vqm = { version = "0.1.21", default-features = false, optional = true }
 vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix", default-features = false, optional = true }
 #vqm = { path = "../vqm", default-features = false, optional = true }
+nalgebra = { version = "0.35.0", default-features = false, optional = true }
 
 [dev-dependencies]
 approx = { version = "0.5.1", default-features = false }
@@ -48,7 +53,7 @@ approx = { version = "0.5.1", default-features = false }
 signal-filters = { git = "https://github.com/martinbudden/crate-signal-filters" }
 #signal_filters = { path = "../signal-filters" }
 #vqm = { version = "0.1.21", default-features = false }
-vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix", default-features = false }
+#vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix", default-features = false }
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]

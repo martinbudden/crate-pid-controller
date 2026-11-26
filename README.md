@@ -343,7 +343,7 @@ to filter the gyro output and the Dterm.
 
 The example below puts this all together:
 
-```rust
+```text
 use pidsk_controller::PidController;
 use signal_filters::{Pt1FilterVector3Vector3f32, Pt1FilterVector3f32, UpdateFilter};
 use vqm::{Quaternionf32, UnitQuaternionf32, Vector3f32};
@@ -371,19 +371,20 @@ let gyro_measurement_q = UnitQuaternionf32::from(gyro_measurement_filtered_rps);
 // Create a mock target rate (in practice this comes from the joysticks).
 let target_rates_q = UnitQuaternionf32::from_roll_pitch_yaw_degrees(200.0, 100.0, 50.0);
 // Use it to set the PID controller setpoint.
-pid_controller.set_setpoint(target_rates_q.imaginary());
+pid_controller.set_setpoint(target_rates_q.imag());
 
 // Calculate the measurement delta and filter it.
-let measurement = gyro_measurement_q.imaginary();
+let measurement = gyro_measurement_q.imag();
 let measurement_delta_filtered =
    (measurement - pid_controller.previous_measurement()).filter_using(&mut dterm_filter);
 
 // Calculate the error: setpoint - measurement, but in Quaternion space.
 let error = (Quaternionf32::from(pid_controller.setpoint()) * gyro_measurement_q.q().conjugate())
    .normalize()
-   .imaginary();
+   .imag();
 
 // Calculate the output using the PID controller.
+#[cfg(feature = "vqm")]
 let output = pid_controller.update_delta_error(measurement, measurement_delta_filtered, error, dt);
 // ... next step is to send the output to the motor mixer.
 ```

@@ -1,15 +1,12 @@
 use core::ops::{Mul, Sub};
-use num_traits::{ConstOne, ConstZero};
+use num_traits::Zero;
 
-use crate::{PErrors, PGains};
+use crate::{GainOne, PErrors, PGains};
 
-#[cfg(feature = "storage")]
-use sequential_storage::map::PostcardValue;
 #[cfg(feature = "serde")]
-use {
-    postcard::experimental::max_size::MaxSize,
-    serde::{Deserialize, Serialize},
-};
+use ::serde::{Deserialize, Serialize};
+#[cfg(feature = "storage")]
+use {postcard::experimental::max_size::MaxSize, sequential_storage::map::PostcardValue};
 
 /// `PController` using `f32` values.
 pub type PControllerf32 = PController<f32>;
@@ -20,7 +17,8 @@ pub type PControllerf64 = PController<f64>;
 /// Pure P-controller.
 /// `PControllerf32` and `PControllerf64` aliases are available.<br>
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "storage", derive(MaxSize))]
 pub struct PController<T> {
     gains: PGains<T>,
 
@@ -41,27 +39,33 @@ impl<T> PostcardValue<'_> for PController<T> where T: Serialize + MaxSize + for<
 ///
 /// assert_eq!(1.0, p_controller.gains().kp);
 /// ```
-impl<T: Copy + ConstZero + ConstOne> Default for PController<T> {
+impl<T: Zero + GainOne> Default for PController<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 // Constructors
-impl<T: Copy + ConstZero + ConstOne> PController<T> {
+impl<T> PController<T> {
     /// Constructor.
     #[must_use]
-    pub const fn new() -> Self {
+    pub fn new() -> Self
+    where
+        T: Zero + GainOne,
+    {
         Self {
             gains: PGains::new(),
-            setpoint: T::ZERO,
-            error: T::ZERO,
+            setpoint: T::zero(),
+            error: T::zero(),
         }
     }
 
     /// Set the gains of a newly constructed `PController`.
     #[must_use]
-    pub fn with_gains(mut self, gains: PGains<T>) -> Self {
+    pub fn with_gains(mut self, gains: PGains<T>) -> Self
+    where
+        T: Copy,
+    {
         self.set_gains(gains);
         self
     }
@@ -151,7 +155,7 @@ impl<T: Default> From<PGains<T>> for PController<T> {
 /// Accessor functions to obtain error values.
 impl<T> PController<T>
 where
-    T: Copy + ConstZero + Mul<Output = T>,
+    T: Copy + Zero + Mul<Output = T>,
 {
     /// Returns the error multiplied by the gain.
     pub fn error(&self) -> PErrors<T> {
@@ -172,13 +176,13 @@ where
 
     /// Clears historical record to allow bumpless transfer.
     pub fn reset(&mut self) {
-        self.error = T::ZERO;
+        self.error = T::zero();
     }
 
     /// Reset all, for test code.
     pub fn reset_all(&mut self) {
-        self.setpoint = T::ZERO;
-        self.error = T::ZERO;
+        self.setpoint = T::zero();
+        self.error = T::zero();
     }
 }
 
@@ -188,9 +192,9 @@ mod test_traits {
 
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    fn is_serde<T: Serialize + for<'a> Deserialize<'a>>() {}
     #[cfg(feature = "storage")]
-    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+    fn is_storage<T: MaxSize + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {

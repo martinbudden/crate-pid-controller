@@ -9,6 +9,17 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
+## [0.1.16] - 2026-12-xx
+
+### Changed
+
+- moved `MaxSize` trait out of `serde` into storage.
+
+### Added
+
+- `nalgebra` feature flag so vector PID controllers can use `vqm` or `nalgebra`.
+- `GainOne` trait.
+
 ## [0.1.15] - 2026-11-21
 
 ### Changed

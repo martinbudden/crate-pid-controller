@@ -1,12 +1,10 @@
-use num_traits::{ConstOne, ConstZero};
+use crate::GainOne;
+
+#[cfg(feature = "serde")]
+use ::serde::{Deserialize, Serialize};
 
 #[cfg(feature = "storage")]
-use sequential_storage::map::PostcardValue;
-#[cfg(feature = "serde")]
-use {
-    postcard::experimental::max_size::MaxSize,
-    serde::{Deserialize, Serialize},
-};
+use {postcard::experimental::max_size::MaxSize, sequential_storage::map::PostcardValue};
 
 /// `PGains` using `f32` values.
 pub type PGainsf32 = PGains<f32>;
@@ -15,7 +13,8 @@ pub type PGainsf64 = PGains<f64>;
 
 /// Gains for a pure P-controller.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "storage", derive(MaxSize))]
 pub struct PGains<T> {
     /// proportional gain.
     pub kp: T,
@@ -26,21 +25,21 @@ impl<T> PostcardValue<'_> for PGains<T> where T: Serialize + MaxSize + for<'de> 
 
 impl<T> Default for PGains<T>
 where
-    T: ConstOne + ConstZero,
+    T: GainOne,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> PGains<T>
-where
-    T: ConstOne + ConstZero,
-{
+impl<T> PGains<T> {
     /// Constructor.
     #[must_use]
-    pub const fn new() -> Self {
-        Self { kp: T::ONE }
+    pub fn new() -> Self
+    where
+        T: GainOne,
+    {
+        Self { kp: T::gain_one() }
     }
 
     /// Set the `kp` of a newly constructed `PGains`.
@@ -57,9 +56,9 @@ mod test_traits {
 
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    fn is_serde<T: Serialize + for<'a> Deserialize<'a>>() {}
     #[cfg(feature = "storage")]
-    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
+    fn is_storage<T: MaxSize + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {
