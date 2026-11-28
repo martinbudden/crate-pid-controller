@@ -105,8 +105,12 @@ impl<T, R> PidController<T, R> {
 
     /// Set the `ki` of a newly constructed `PidController`.
     #[must_use]
-    pub fn with_ki(mut self, ki: T) -> Self {
+    pub fn with_ki(mut self, ki: T) -> Self
+    where
+        T: Copy,
+    {
         self.gains.ki = ki;
+        self.ki_saved = ki;
         self
     }
 
@@ -163,7 +167,7 @@ where
         + Div<R, Output = T>
         + Mul<R, Output = T>
         + PartialEq,
-    R: Copy + Zero + PartialEq,
+    R: Copy + Zero + PartialOrd,
 {
     /// PID-controller update.
     /// ```
@@ -239,7 +243,7 @@ where
         iterm_error: T,
         dt: R,
     ) -> T {
-        debug_assert!(dt != R::zero());
+        debug_assert!(dt > R::zero());
 
         self.measurement_previous = measurement;
 
@@ -420,12 +424,12 @@ where
 impl<T, R> PidController<T, R>
 where
     T: Copy + Sub<T, Output = T> + Div<R, Output = T>,
-    R: Zero + PartialEq,
+    R: Zero + PartialOrd,
 {
     /// Set the setpoint and calculate the setpoint derivative.
     #[inline]
     pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: R) {
-        debug_assert!(dt != R::zero());
+        debug_assert!(dt > R::zero());
         self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
         self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;

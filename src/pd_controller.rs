@@ -99,7 +99,7 @@ impl<T, R> PdController<T, R> {
 impl<T, R> PdController<T, R>
 where
     T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Neg<Output = T> + Div<R, Output = T>,
-    R: Zero + PartialEq,
+    R: Zero + PartialOrd,
 {
     /// PD-controller update.
     /// ```
@@ -141,7 +141,7 @@ where
     /// assert_eq!(-0.010_000_005, output);
     ///
     pub fn update_delta(&mut self, measurement: T, measurement_delta: T, dt: R) -> T {
-        debug_assert!(dt != R::zero());
+        debug_assert!(dt > R::zero());
 
         self.measurement_previous = measurement;
 

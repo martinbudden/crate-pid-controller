@@ -108,8 +108,12 @@ impl<T, R> PidskController<T, R> {
 
     /// Set the `ki` of a newly constructed `PidskController`.
     #[must_use]
-    pub fn with_ki(mut self, ki: T) -> Self {
+    pub fn with_ki(mut self, ki: T) -> Self
+    where
+        T: Copy,
+    {
         self.gains.ki = ki;
+        self.ki_saved = ki;
         self
     }
 
@@ -183,7 +187,7 @@ where
         + Div<R, Output = T>
         + Mul<R, Output = T>
         + PartialEq,
-    R: Copy + Zero + PartialEq,
+    R: Copy + Zero + PartialOrd,
 {
     /// PIDSK-controller update.
     /// ```
@@ -259,7 +263,7 @@ where
         iterm_error: T,
         dt: R,
     ) -> T {
-        debug_assert!(dt != R::zero());
+        debug_assert!(dt > R::zero());
 
         self.measurement_previous = measurement;
 
@@ -296,7 +300,7 @@ where
 
     /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `ki` are zero.
     pub fn update_spi(&mut self, measurement: T, dt: R) -> T {
-        debug_assert!(dt != R::zero());
+        debug_assert!(dt > R::zero());
 
         self.measurement_previous = measurement;
 
@@ -408,11 +412,11 @@ where
 impl<T, R> PidskController<T, R>
 where
     T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Neg<Output = T> + Div<R, Output = T>,
-    R: Zero + PartialEq,
+    R: Zero + PartialOrd,
 {
     /// Optimized form of `update` that assumes all gains except `ks`, `kp`, and `kd` are zero.
     pub fn update_spd(&mut self, measurement: T, measurement_delta: T, dt: R) -> T {
-        debug_assert!(dt != R::zero());
+        debug_assert!(dt > R::zero());
 
         self.measurement_previous = measurement;
         self.error = self.setpoint - measurement;
@@ -518,12 +522,12 @@ where
 impl<T, R> PidskController<T, R>
 where
     T: Copy + Sub<T, Output = T> + Div<R, Output = T>,
-    R: Zero + PartialEq,
+    R: Zero + PartialOrd,
 {
     /// Set the setpoint and calculate the setpoint derivative.
     #[inline]
     pub fn set_setpoint_for_delta_t(&mut self, setpoint: T, dt: R) {
-        debug_assert!(dt != R::zero());
+        debug_assert!(dt > R::zero());
         self.setpoint_previous = self.setpoint;
         self.setpoint = setpoint;
         self.setpoint_derivative = (self.setpoint - self.setpoint_previous) / dt;
