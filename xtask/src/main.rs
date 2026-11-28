@@ -29,9 +29,11 @@ fn run_ci_pipeline() {
             "check",
             &["--no-default-features", "--features", "serde, storage, nalgebra"],
         ),
+        ("test", &["--no-default-features"]),
         ("test", &["--no-default-features", "--features", "vqm"]),
         ("test", &["--no-default-features", "--features", "nalgebra"]),
-        ("test", &["--no-default-features", "--features", "serde, storage"]),
+        ("test", &["--no-default-features", "--features", "serde"]),
+        ("test", &["--no-default-features", "--features", "storage"]),
         ("test", &["--no-default-features", "--features", "serde, storage, vqm"]),
         (
             "test",

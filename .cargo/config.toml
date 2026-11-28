@@ -1,7 +1,7 @@
 [alias]
 # Run using: 'cargo test-serde'
 test-none = [ "test", "--no-default-features"]
-test-serde = [ "check", "--no-default-features", "--features", "serde"]
+test-serde = [ "test", "--no-default-features", "--features", "serde"]
 test-storage = [ "test", "--no-default-features", "--features", "storage"]
 test-vqm = [ "test", "--no-default-features", "--features", "vqm"]
 test-all-vqm = [ "test", "--features", "vqm, serde ,storage"]

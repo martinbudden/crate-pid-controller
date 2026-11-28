@@ -341,9 +341,13 @@ However, since `PidController` is implemented using generics (`PidControllerf32`
 Since the filters in `signal-filters` are also implemented as generics, it is also possible to use vectorized filters
 to filter the gyro output and the Dterm.
 
+To use vectorized PID controllers, we need an underlying Vector implementation: setting the `vqm` feature flag (on by default)
+brings in the `vqm` vectors and uses them in the vector PID controllers (eg `PidControllerVector3f32`).
+
 The example below puts this all together:
 
-```text
+```rust
+#[cfg(feature = "vqm")] {
 use pidsk_controller::PidController;
 use signal_filters::{Pt1FilterVector3Vector3f32, Pt1FilterVector3f32, UpdateFilter};
 use vqm::{Quaternionf32, UnitQuaternionf32, Vector3f32};
@@ -384,9 +388,9 @@ let error = (Quaternionf32::from(pid_controller.setpoint()) * gyro_measurement_q
    .imag();
 
 // Calculate the output using the PID controller.
-#[cfg(feature = "vqm")]
 let output = pid_controller.update_delta_error(measurement, measurement_delta_filtered, error, dt);
 // ... next step is to send the output to the motor mixer.
+}
 ```
 
 ## Choosing an update function

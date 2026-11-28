@@ -322,7 +322,7 @@ dependencies = [
 [[package]]
 name = "signal-filters"
 version = "0.1.18"
-source = "git+https://github.com/martinbudden/crate-signal-filters#d990d5c8d7426ce43f07eea421a0694ed678a1aa"
+source = "git+https://github.com/martinbudden/crate-signal-filters#b11c39d02b9cbf77049bd6ae415b3be0cca259a8"
 dependencies = [
  "libm",
  "nalgebra",
@@ -414,7 +414,7 @@ checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 [[package]]
 name = "vqm"
 version = "0.1.21"
-source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#e47ef4f49a2ffff062763a796621b9f20ff00503"
+source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#a0603cbf2d336f109cdc9d98e765ed5c37c01e44"
 dependencies = [
  "libm",
  "num-traits",
